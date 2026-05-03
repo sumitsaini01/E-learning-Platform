@@ -4,6 +4,8 @@ import jwt from "jsonwebtoken";
  * Protect route using JWT from Authorization header.
  * Expects: Authorization: Bearer <token>
  */
+
+
 export const protect = (req, res, next) => {
   try {
     const authHeader = req.headers.authorization || "";

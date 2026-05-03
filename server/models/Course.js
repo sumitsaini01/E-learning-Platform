@@ -22,6 +22,14 @@ const courseSchema = new mongoose.Schema(
       required: [true, "Course category is required"],
       trim: true,
     },
+    averageRating: {
+      type: Number,
+      default: 0,
+    },
+    numReviews: {
+      type: Number,
+      default: 0,
+    },
     instructor: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -40,4 +48,3 @@ const courseSchema = new mongoose.Schema(
 const Course = mongoose.model("Course", courseSchema);
 
 export default Course;
-

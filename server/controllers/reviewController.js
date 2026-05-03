@@ -1,6 +1,6 @@
 import Review from "../models/Review.js";
+import Course from "../models/Course.js";
 
-// ✅ Add review
 export const addReview = async (req, res) => {
   try {
     const { rating, comment } = req.body;
@@ -10,6 +10,17 @@ export const addReview = async (req, res) => {
       user: req.user._id,
       rating,
       comment,
+    });
+
+    // 🔥 Recalculate rating
+    const reviews = await Review.find({ course: req.params.id });
+
+    const avgRating =
+      reviews.reduce((acc, item) => acc + item.rating, 0) / reviews.length;
+
+    await Course.findByIdAndUpdate(req.params.id, {
+      averageRating: avgRating,
+      numReviews: reviews.length,
     });
 
     res.status(201).json({

@@ -180,3 +180,81 @@ export const enrollCourse = async (req, res) => {
   }
 };
 
+
+// ✅ Instructor analytics
+export const getInstructorAnalytics = async (req, res) => {
+  try {
+    const courses = await Course.find({ instructor: req.user._id });
+
+    let totalStudents = 0;
+    let totalRevenue = 0;
+
+    let topCourse = null;
+    let maxStudents = 0;
+
+    let recentEnrollments = [];
+
+    courses.forEach((course) => {
+      const studentCount = course.students.length;
+
+      totalStudents += studentCount;
+      totalRevenue += studentCount * course.price;
+
+      if (studentCount > maxStudents) {
+        maxStudents = studentCount;
+        topCourse = course;
+      }
+
+      const latestStudents = course.students.slice(-5);
+
+      latestStudents.forEach((studentId) => {
+        recentEnrollments.push({
+          courseTitle: course.title,
+          studentId,
+        });
+      });
+    });
+
+    res.json({
+      success: true,
+      totalCourses: courses.length,
+      totalStudents,
+      totalRevenue,
+      topCourse: topCourse
+        ? {
+            title: topCourse.title,
+            students: topCourse.students.length,
+            revenue: topCourse.students.length * topCourse.price,
+          }
+        : null,
+      recentEnrollments: recentEnrollments.slice(-5),
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Failed to fetch analytics",
+    });
+  }
+};
+
+
+
+// ✅ Get instructor's courses
+export const getInstructorCourses = async (req, res) => {
+  try {
+    const courses = await Course.find({ instructor: req.user._id });
+
+    res.json({
+      success: true,
+      courses: courses.map((course) => ({
+        id: course._id,
+        title: course.title,
+        price: course.price,
+        students: course.students.length,
+        averageRating: course.averageRating,
+        numReviews: course.numReviews,
+      })),
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to fetch courses" });
+  }
+};

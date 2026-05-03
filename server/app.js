@@ -1,9 +1,8 @@
-const express = require("express");
-const cors = require("cors");
-const healthRoutes = require("./routes/healthRoutes");
-const { notFound, errorHandler } = require("./middleware/errorMiddleware");
-const helmet = require("helmet");
-const morgan = require("morgan");
+import cors from "cors";
+import express from "express";
+import helmet from "helmet";
+import morgan from "morgan";
+import healthRoutes from "./routes/healthRoutes.js";
 
 const app = express();
 
@@ -18,9 +17,4 @@ app.use(morgan("dev"));
 //routes
 app.use("/api/health", healthRoutes);
 
-//error handling
-app.use(notFound);
-app.use(errorHandler);
-
-module.exports = app;
-
+export default app;

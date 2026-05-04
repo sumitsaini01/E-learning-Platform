@@ -5,6 +5,7 @@ import { errorHandler, notFound } from "./server/middleware/errorMiddleware.js";
 import courseRoutes from "./server/routes/courseRoutes.js";
 import authRoutes from "./server/routes/authRoutes.js";
 import reviewRoutes from "./server/routes/reviewRoutes.js";
+import progressRoutes from "./server/routes/progressRoutes.js";
 
 dotenv.config({ quiet: true });
 
@@ -17,6 +18,7 @@ const startServer = async () => {
     app.use("/api/auth", authRoutes);     // ✅ RESTORED
     app.use("/api/courses", courseRoutes);
     app.use("/api/reviews", reviewRoutes);
+    app.use("/api/progress", progressRoutes);
 
     app.use(notFound);
     app.use(errorHandler);

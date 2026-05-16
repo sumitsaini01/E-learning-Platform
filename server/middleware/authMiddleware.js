@@ -8,9 +8,10 @@ import jwt from "jsonwebtoken";
 
 export const protect = (req, res, next) => {
   try {
+
     const authHeader = req.headers.authorization || "";
 
-    if (!authHeader.toLowerCase().startsWith("Bearer ")) {
+    if (!authHeader.toLowerCase().startsWith("bearer ")) {
       return res.status(401).json({
         success: false,
         message: "Not authorized. Token is missing.",
@@ -35,7 +36,7 @@ export const protect = (req, res, next) => {
 
     return next();
   } catch (error) {
-    return res.status(401).json({
+     return res.status(401).json({
       success: false,
       message: "Not authorized. Invalid or expired token.",
     });

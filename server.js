@@ -1,4 +1,6 @@
 import dotenv from "dotenv";
+dotenv.config(); // keep this (safe + standard)
+
 import app from "./server/app.js";
 import connectDB from "./server/config/db.js";
 import { errorHandler, notFound } from "./server/middleware/errorMiddleware.js";
@@ -6,8 +8,7 @@ import courseRoutes from "./server/routes/courseRoutes.js";
 import authRoutes from "./server/routes/authRoutes.js";
 import reviewRoutes from "./server/routes/reviewRoutes.js";
 import progressRoutes from "./server/routes/progressRoutes.js";
-
-dotenv.config({ quiet: true });
+import paymentRoutes from "./server/routes/paymentRoutes.js";
 
 const PORT = process.env.PORT || 5000;
 
@@ -19,6 +20,7 @@ const startServer = async () => {
     app.use("/api/courses", courseRoutes);
     app.use("/api/reviews", reviewRoutes);
     app.use("/api/progress", progressRoutes);
+    app.use("/api/payment", paymentRoutes);
 
     app.use(notFound);
     app.use(errorHandler);

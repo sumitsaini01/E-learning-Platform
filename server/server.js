@@ -1,14 +1,14 @@
 import dotenv from "dotenv";
 dotenv.config(); // keep this (safe + standard)
 
-import app from "./server/app.js";
-import connectDB from "./server/config/db.js";
-import { errorHandler, notFound } from "./server/middleware/errorMiddleware.js";
-import courseRoutes from "./server/routes/courseRoutes.js";
-import authRoutes from "./server/routes/authRoutes.js";
-import reviewRoutes from "./server/routes/reviewRoutes.js";
-import progressRoutes from "./server/routes/progressRoutes.js";
-import paymentRoutes from "./server/routes/paymentRoutes.js";
+import app from "./app.js";
+import connectDB from "./config/db.js";
+import { errorHandler, notFound } from "./middleware/errorMiddleware.js";
+import courseRoutes from "./routes/courseRoutes.js";
+import authRoutes from "./routes/authRoutes.js";
+import reviewRoutes from "./routes/reviewRoutes.js";
+import progressRoutes from "./routes/progressRoutes.js";
+import paymentRoutes from "./routes/paymentRoutes.js";
 
 const PORT = process.env.PORT || 5000;
 

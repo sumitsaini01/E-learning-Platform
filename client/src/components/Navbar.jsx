@@ -1,12 +1,15 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
+import { useAuth } from "../hooks/useAuth";
+import { getRoleRedirectPath } from "../utils/getRoleRedirectPath";
 
-const navLinks = [
-  { label: "Home", to: "/" },
-  { label: "Login", to: "/login" },
-  { label: "Register", to: "/register" },
-];
+const navLinks = [{ label: "Home", to: "/" }];
 
 function Navbar() {
+
+  const navigate = useNavigate();
+
+  const { isAuthenticated, logout, user } = useAuth();
+
   const getLinkClass = ({ isActive }) =>
     [
       "rounded-md px-3 py-2 text-sm font-medium transition",
@@ -28,6 +31,46 @@ function Navbar() {
               {link.label}
             </NavLink>
           ))}
+
+          {isAuthenticated ? (
+            <>
+              <NavLink
+                to="/profile"
+                className={({ isActive }) =>
+                  [
+                    "max-w-28 truncate rounded-md px-3 py-2 text-sm font-medium transition sm:max-w-none",
+                    isActive
+                      ? "bg-emerald-100 text-emerald-800"
+                      : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-950",
+                  ].join(" ")
+                }
+              >
+                {user?.name}
+              </NavLink>
+              <NavLink to={getRoleRedirectPath(user?.role)} className={getLinkClass}>
+                Dashboard
+              </NavLink>
+              <button
+                type="button"
+                onClick={() => {
+                  logout();
+                  navigate("/login", { replace: true });
+                }}
+                className="rounded-md px-3 py-2 text-sm font-medium text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-950"
+              >
+                Logout
+              </button>
+            </>
+          ) : (
+            <>
+              <NavLink to="/login" className={getLinkClass}>
+                Login
+              </NavLink>
+              <NavLink to="/register" className={getLinkClass}>
+                Register
+              </NavLink>
+            </>
+          )}
         </div>
       </nav>
     </header>

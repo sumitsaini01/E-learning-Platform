@@ -1,5 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import MainLayout from "../layouts/MainLayout";
+import CourseDetailsPage from "../pages/CourseDetailsPage";
+import CoursesPage from "../pages/CoursesPage";
 import HomePage from "../pages/HomePage";
 import InstructorDashboard from "../pages/InstructorDashboard";
 import LoginPage from "../pages/LoginPage";
@@ -16,6 +18,8 @@ function AppRoutes() {
     <Routes>
       <Route element={<MainLayout />}>
         <Route index element={<HomePage />} />
+        <Route path="courses" element={<CoursesPage />} />
+        <Route path="courses/:id" element={<CourseDetailsPage />} />
         <Route path="login" element={<LoginPage />} />
         <Route path="register" element={<RegisterPage />} />
 

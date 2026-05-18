@@ -128,6 +128,15 @@ function LoginPage() {
           </button>
         </form>
 
+        <div className="mt-4 text-right">
+          <Link
+            to="/forgot-password"
+            className="text-sm font-medium text-emerald-700 hover:text-emerald-800"
+          >
+            Forgot Password?
+          </Link>
+        </div>
+
         <p className="mt-5 text-center text-sm text-zinc-600">
           New here?{" "}
           <Link

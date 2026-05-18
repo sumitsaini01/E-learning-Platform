@@ -8,6 +8,8 @@ import RegisterPage from "../pages/RegisterPage";
 import StudentDashboard from "../pages/StudentDashboard";
 import ProtectedRoute from "./ProtectedRoute";
 import UnauthorizedPage from "../pages/UnauthorizedPage";
+import ForgotPasswordPage from "../pages/ForgotPasswordPage";
+import ResetPasswordPage from "../pages/ResetPasswordPage";
 
 function AppRoutes() {
   return (
@@ -16,6 +18,10 @@ function AppRoutes() {
         <Route index element={<HomePage />} />
         <Route path="login" element={<LoginPage />} />
         <Route path="register" element={<RegisterPage />} />
+
+        <Route path="forgot-password" element={<ForgotPasswordPage />} />
+
+        <Route path="reset-password/:token" element={<ResetPasswordPage />} />
 
         <Route element={<ProtectedRoute />}>
           <Route path="profile" element={<ProfilePage />} />
@@ -26,7 +32,10 @@ function AppRoutes() {
         </Route>
 
         <Route element={<ProtectedRoute allowedRoles={["instructor"]} />}>
-          <Route path="dashboard/instructor" element={<InstructorDashboard />} />
+          <Route
+            path="dashboard/instructor"
+            element={<InstructorDashboard />}
+          />
         </Route>
 
         <Route path="unauthorized" element={<UnauthorizedPage />} />

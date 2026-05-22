@@ -1,24 +1,27 @@
 import express from "express";
 import {
-  markLessonComplete,
   getProgress,
+  markLessonComplete,
 } from "../controllers/progressController.js";
-import { protect, authorizeRoles } from "../middleware/authMiddleware.js";
+import {
+  authorizeRoles,
+  protect,
+} from "../middleware/authMiddleware.js";
 
 const router = express.Router();
-
-router.post(
-  "/:courseId/complete",
-  protect,
-  authorizeRoles("student"),
-  markLessonComplete
-);
 
 router.get(
   "/:courseId",
   protect,
   authorizeRoles("student"),
-  getProgress
+  getProgress,
+);
+
+router.post(
+  "/:courseId/complete",
+  protect,
+  authorizeRoles("student"),
+  markLessonComplete,
 );
 
 export default router;

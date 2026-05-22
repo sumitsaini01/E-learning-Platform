@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import MainLayout from "../layouts/MainLayout";
 import CourseDetailsPage from "../pages/CourseDetailsPage";
 import CoursesPage from "../pages/CoursesPage";
+import CreateCoursePage from "../pages/CreateCoursePage";
 import HomePage from "../pages/HomePage";
 import InstructorDashboard from "../pages/InstructorDashboard";
 import LoginPage from "../pages/LoginPage";
@@ -12,6 +13,7 @@ import ProtectedRoute from "./ProtectedRoute";
 import UnauthorizedPage from "../pages/UnauthorizedPage";
 import ForgotPasswordPage from "../pages/ForgotPasswordPage";
 import ResetPasswordPage from "../pages/ResetPasswordPage";
+import EditCoursePage from "../pages/EditCoursePage";
 
 function AppRoutes() {
   return (
@@ -39,6 +41,20 @@ function AppRoutes() {
           <Route
             path="dashboard/instructor"
             element={<InstructorDashboard />}
+          />
+        </Route>
+
+        <Route
+          element={<ProtectedRoute allowedRoles={["instructor", "admin"]} />}
+        >
+          <Route
+            path="instructor/create-course"
+            element={<CreateCoursePage />}
+          />
+
+          <Route
+            path="instructor/courses/:courseId/edit"
+            element={<EditCoursePage />}
           />
         </Route>
 

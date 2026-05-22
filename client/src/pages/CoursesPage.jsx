@@ -27,8 +27,33 @@ function CoursesPage() {
   }, []);
 
   useEffect(() => {
-    loadCourses();
-  }, [loadCourses]);
+    let shouldUpdate = true;
+
+    getCourses({ limit: 50 })
+      .then((data) => {
+        if (shouldUpdate) {
+          setCourses(data.courses || []);
+        }
+      })
+      .catch((err) => {
+        if (shouldUpdate) {
+          setError(
+            err.response?.data?.message ||
+              err.message ||
+              "Unable to load courses right now.",
+          );
+        }
+      })
+      .finally(() => {
+        if (shouldUpdate) {
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      shouldUpdate = false;
+    };
+  }, []);
 
   return (
     <section className="space-y-8">

@@ -2,7 +2,10 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { getRoleRedirectPath } from "../utils/getRoleRedirectPath";
 
-const navLinks = [{ label: "Home", to: "/" }];
+const navLinks = [
+  { label: "Home", to: "/" },
+  { label: "Courses", to: "/courses" },
+];
 
 function Navbar() {
 
@@ -25,7 +28,7 @@ function Navbar() {
           SkillSphere
         </NavLink>
 
-        <div className="flex items-center gap-1">
+        <div className="flex flex-wrap items-center justify-end gap-1">
           {navLinks.map((link) => (
             <NavLink key={link.to} to={link.to} className={getLinkClass}>
               {link.label}

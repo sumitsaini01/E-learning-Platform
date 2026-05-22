@@ -7,18 +7,36 @@ const progressSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+
     course: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Course",
       required: true,
     },
-    completedLessons: [
-      {
-        type: String,
-      },
-    ],
+
+    completedLessons: {
+      type: [String],
+      default: [],
+    },
+
+    lastAccessedLesson: {
+      type: String,
+      default: "",
+    },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
-export default mongoose.model("Progress", progressSchema);
+progressSchema.index(
+  {
+    user: 1,
+    course: 1,
+  },
+  {
+    unique: true,
+  },
+);
+
+const Progress = mongoose.model("Progress", progressSchema);
+
+export default Progress;

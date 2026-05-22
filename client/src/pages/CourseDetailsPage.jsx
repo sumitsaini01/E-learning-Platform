@@ -9,6 +9,10 @@ import {
   updateCourseReview,
 } from "../services/courseService";
 import {
+  createPaymentOrder,
+  verifyPayment,
+} from "../services/paymentService";
+import {
   getCourseProgress,
   markLessonComplete,
 } from "../services/progressService";
@@ -37,6 +41,21 @@ const getYouTubeEmbedUrl = (url) => {
 const getUserId = (value) => {
   if (!value) return "";
   return typeof value === "string" ? value : value._id || value.id || "";
+};
+
+const loadRazorpayScript = () => {
+  return new Promise((resolve) => {
+    if (window.Razorpay) {
+      resolve(true);
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
 };
 
 function StarRatingInput({ value, onChange, disabled = false }) {
@@ -98,17 +117,16 @@ function CourseDetailsPage() {
 
   const isEnrolled = useMemo(() => {
     if (!course?.students || !studentId) return false;
-
     return course.students.some((student) => getUserId(student) === studentId);
   }, [course?.students, studentId]);
 
   const userReview = useMemo(() => {
     if (!course?.reviews || !studentId) return null;
-
     return course.reviews.find((review) => getUserId(review.user) === studentId);
   }, [course?.reviews, studentId]);
 
   const hasReviewed = Boolean(userReview);
+  const isFreeCourse = Number(course?.price || 0) === 0;
 
   const canViewAllLessons =
     isAuthenticated &&
@@ -160,7 +178,7 @@ function CourseDetailsPage() {
   const totalLessons = progress?.totalLessons || 0;
   const percentage = progress?.percentage || 0;
 
-  const handleEnroll = async () => {
+  const handleFreeEnroll = async () => {
     try {
       setEnrollError("");
       setEnrollMessage("");
@@ -174,6 +192,93 @@ function CourseDetailsPage() {
     } catch (err) {
       setEnrollError(
         err.response?.data?.message || "Unable to enroll in this course.",
+      );
+    } finally {
+      setIsEnrolling(false);
+    }
+  };
+
+  const handleBuyCourse = async () => {
+    try {
+      setEnrollError("");
+      setEnrollMessage("");
+      setIsEnrolling(true);
+
+      if (isFreeCourse) {
+        await handleFreeEnroll();
+        return;
+      }
+
+      const scriptLoaded = await loadRazorpayScript();
+
+      if (!scriptLoaded) {
+        setEnrollError("Unable to load Razorpay. Please check your internet.");
+        return;
+      }
+
+      const orderData = await createPaymentOrder(id);
+
+      if (orderData.free) {
+        if (orderData.course) setCourse(orderData.course);
+        setEnrollMessage(orderData.message || "Successfully enrolled.");
+        return;
+      }
+
+      const options = {
+        key: orderData.key,
+        amount: orderData.order.amount,
+        currency: orderData.order.currency,
+        name: "SkillSphere",
+        description: orderData.order.courseTitle,
+        order_id: orderData.order.razorpayOrderId,
+        prefill: {
+          name: user?.name || "",
+          email: user?.email || "",
+        },
+        notes: {
+          courseId: id,
+        },
+        theme: {
+          color: "#047857",
+        },
+        handler: async (response) => {
+          try {
+            const verifiedData = await verifyPayment({
+              courseId: id,
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+            });
+
+            if (verifiedData.course) {
+              setCourse(verifiedData.course);
+            } else {
+              await loadCourse();
+            }
+
+            setEnrollMessage(
+              verifiedData.message ||
+                "Payment successful. You are enrolled in this course.",
+            );
+          } catch (err) {
+            setEnrollError(
+              err.response?.data?.message ||
+                "Payment completed but verification failed.",
+            );
+          }
+        },
+        modal: {
+          ondismiss: () => {
+            setEnrollError("Payment cancelled.");
+          },
+        },
+      };
+
+      const razorpay = new window.Razorpay(options);
+      razorpay.open();
+    } catch (err) {
+      setEnrollError(
+        err.response?.data?.message || "Unable to start payment.",
       );
     } finally {
       setIsEnrolling(false);
@@ -361,7 +466,8 @@ function CourseDetailsPage() {
 
   const instructorName = course.instructor?.name || "SkillSphere Instructor";
   const instructorEmail = course.instructor?.email;
-  const canEnroll = isAuthenticated && user?.role === "student" && !isEnrolled;
+  const canPurchase =
+    isAuthenticated && user?.role === "student" && !isEnrolled;
   const studentCount = course.students?.length || 0;
   const sections = course.sections || [];
   const reviews = course.reviews || [];
@@ -463,14 +569,20 @@ function CourseDetailsPage() {
             </div>
           ) : null}
 
-          {canEnroll ? (
+          {canPurchase ? (
             <button
               type="button"
-              onClick={handleEnroll}
+              onClick={handleBuyCourse}
               disabled={isEnrolling}
               className="mt-6 w-full rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-emerald-400"
             >
-              {isEnrolling ? "Enrolling..." : "Enroll now"}
+              {isEnrolling
+                ? isFreeCourse
+                  ? "Enrolling..."
+                  : "Processing..."
+                : isFreeCourse
+                  ? "Enroll for Free"
+                  : "Buy Now"}
             </button>
           ) : !isAuthenticated ? (
             <Link
@@ -478,7 +590,7 @@ function CourseDetailsPage() {
               state={{ from: location }}
               className="mt-6 inline-flex w-full justify-center rounded-md bg-zinc-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800"
             >
-              Login as student to enroll
+              Login as student to continue
             </Link>
           ) : null}
         </aside>

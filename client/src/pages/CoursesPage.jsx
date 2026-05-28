@@ -1,18 +1,29 @@
 import { useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import CourseGrid from "../components/CourseGrid";
 import { getCourses } from "../services/courseService";
 
 function CoursesPage() {
+  const [searchParams] = useSearchParams();
+
   const [courses, setCourses] = useState([]);
+
   const [error, setError] = useState("");
+
   const [isLoading, setIsLoading] = useState(true);
+
+  const search = searchParams.get("search") || "";
 
   const loadCourses = useCallback(async () => {
     try {
       setIsLoading(true);
+
       setError("");
 
-      const data = await getCourses({ limit: 50 });
+      const data = await getCourses({
+        limit: 50,
+        search,
+      });
 
       setCourses(data.courses || []);
     } catch (err) {
@@ -24,53 +35,32 @@ function CoursesPage() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [search]);
 
   useEffect(() => {
-    let shouldUpdate = true;
-
-    getCourses({ limit: 50 })
-      .then((data) => {
-        if (shouldUpdate) {
-          setCourses(data.courses || []);
-        }
-      })
-      .catch((err) => {
-        if (shouldUpdate) {
-          setError(
-            err.response?.data?.message ||
-              err.message ||
-              "Unable to load courses right now.",
-          );
-        }
-      })
-      .finally(() => {
-        if (shouldUpdate) {
-          setIsLoading(false);
-        }
-      });
-
-    return () => {
-      shouldUpdate = false;
-    };
-  }, []);
+    loadCourses();
+  }, [loadCourses]);
 
   return (
     <section className="space-y-8">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-sm font-medium uppercase tracking-wide text-emerald-700">
-            Courses
-          </p>
+      <div>
+        <p className="text-sm font-medium uppercase tracking-wide text-emerald-700">
+          Courses
+        </p>
 
-          <h1 className="mt-2 text-3xl font-semibold text-zinc-950">
-            Browse courses
-          </h1>
+        <h1 className="mt-2 text-3xl font-semibold text-zinc-950">
+          Browse courses
+        </h1>
 
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-600">
-            Explore available courses and open any course to view details.
+        <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-600">
+          Explore all available courses.
+        </p>
+
+        {search ? (
+          <p className="mt-4 text-sm font-medium text-emerald-700">
+            Search results for: "{search}"
           </p>
-        </div>
+        ) : null}
       </div>
 
       <CourseGrid

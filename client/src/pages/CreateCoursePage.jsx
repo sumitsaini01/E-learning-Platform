@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { createCourse } from "../services/courseService";
+import { courseCategories } from "../constants/coursecategories";
 
 const initialFormState = {
   title: "",
@@ -137,16 +138,22 @@ function CreateCoursePage() {
                 Category
               </label>
 
-              <input
+              <select
                 id="category"
                 name="category"
-                type="text"
                 value={formData.category}
                 onChange={handleChange}
                 className="mt-2 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
-                placeholder="Programming"
                 required
-              />
+              >
+                <option value="">Select category</option>
+
+                {courseCategories.map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div>
@@ -205,7 +212,6 @@ function CreateCoursePage() {
                   checked={formData.status === "draft"}
                   onChange={handleChange}
                 />
-
                 Draft
               </label>
 
@@ -217,7 +223,6 @@ function CreateCoursePage() {
                   checked={formData.status === "published"}
                   onChange={handleChange}
                 />
-
                 Publish
               </label>
             </div>
@@ -234,9 +239,7 @@ function CreateCoursePage() {
       </div>
 
       <aside className="h-fit rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-zinc-950">
-          Course setup
-        </h2>
+        <h2 className="text-lg font-semibold text-zinc-950">Course setup</h2>
 
         <div className="mt-4 space-y-3 text-sm text-zinc-600">
           <p className="rounded-md bg-stone-50 p-3">

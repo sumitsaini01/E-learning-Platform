@@ -1,5 +1,10 @@
 import mongoose from "mongoose";
 import Course from "../models/Course.js";
+import User from "../models/User.js";
+
+const escapeRegex = (value) => {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+};
 
 const validateCourseInput = ({ title, description, price, category }) => {
   if (
@@ -116,7 +121,25 @@ export const getCourses = async (req, res) => {
     }
 
     if (search?.trim()) {
-      filter.$text = { $search: search.trim() };
+      const searchText = search.trim();
+      const safeSearchText = escapeRegex(searchText);
+
+      const matchingInstructors = await User.find({
+        name: { $regex: safeSearchText, $options: "i" },
+      }).select("_id");
+
+      const instructorIds = matchingInstructors.map(
+        (instructor) => instructor._id,
+      );
+
+      filter.$or = [
+        { title: { $regex: safeSearchText, $options: "i" } },
+        { description: { $regex: safeSearchText, $options: "i" } },
+        { category: { $regex: safeSearchText, $options: "i" } },
+        ...(instructorIds.length > 0
+          ? [{ instructor: { $in: instructorIds } }]
+          : []),
+      ];
     }
 
     const courses = await Course.find(filter)

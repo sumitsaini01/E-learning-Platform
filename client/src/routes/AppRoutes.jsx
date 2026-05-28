@@ -3,17 +3,20 @@ import MainLayout from "../layouts/MainLayout";
 import CourseDetailsPage from "../pages/CourseDetailsPage";
 import CoursesPage from "../pages/CoursesPage";
 import CreateCoursePage from "../pages/CreateCoursePage";
+import EditCoursePage from "../pages/EditCoursePage";
+import ForgotPasswordPage from "../pages/ForgotPasswordPage";
 import HomePage from "../pages/HomePage";
 import InstructorDashboard from "../pages/InstructorDashboard";
+import InstructorQuizzesPage from "../pages/InstructorQuizzesPage";
 import LoginPage from "../pages/LoginPage";
 import ProfilePage from "../pages/ProfilePage";
+import QuizAttemptPage from "../pages/QuizAttemptPage";
 import RegisterPage from "../pages/RegisterPage";
-import StudentDashboard from "../pages/StudentDashboard";
-import ProtectedRoute from "./ProtectedRoute";
-import UnauthorizedPage from "../pages/UnauthorizedPage";
-import ForgotPasswordPage from "../pages/ForgotPasswordPage";
 import ResetPasswordPage from "../pages/ResetPasswordPage";
-import EditCoursePage from "../pages/EditCoursePage";
+import StudentDashboard from "../pages/StudentDashboard";
+import UnauthorizedPage from "../pages/UnauthorizedPage";
+import ProtectedRoute from "./ProtectedRoute";
+import CertificateVerificationPage from "../pages/CertificateVerificationPage";
 
 function AppRoutes() {
   return (
@@ -24,9 +27,7 @@ function AppRoutes() {
         <Route path="courses/:id" element={<CourseDetailsPage />} />
         <Route path="login" element={<LoginPage />} />
         <Route path="register" element={<RegisterPage />} />
-
         <Route path="forgot-password" element={<ForgotPasswordPage />} />
-
         <Route path="reset-password/:token" element={<ResetPasswordPage />} />
 
         <Route element={<ProtectedRoute />}>
@@ -35,6 +36,7 @@ function AppRoutes() {
 
         <Route element={<ProtectedRoute allowedRoles={["student"]} />}>
           <Route path="dashboard/student" element={<StudentDashboard />} />
+          <Route path="quizzes/:quizId/attempt" element={<QuizAttemptPage />} />
         </Route>
 
         <Route element={<ProtectedRoute allowedRoles={["instructor"]} />}>
@@ -56,10 +58,19 @@ function AppRoutes() {
             path="instructor/courses/:courseId/edit"
             element={<EditCoursePage />}
           />
+
+          <Route
+            path="instructor/quizzes"
+            element={<InstructorQuizzesPage />}
+          />
         </Route>
 
-        <Route path="unauthorized" element={<UnauthorizedPage />} />
+        <Route
+          path="certificates/verify/:certificateId"
+          element={<CertificateVerificationPage />}
+        />
 
+        <Route path="unauthorized" element={<UnauthorizedPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

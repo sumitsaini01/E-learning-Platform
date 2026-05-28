@@ -1,5 +1,44 @@
 import mongoose from "mongoose";
 
+const lessonProgressSchema = new mongoose.Schema(
+  {
+    lessonId: {
+      type: String,
+      required: true,
+    },
+
+    watchedSeconds: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+    durationSeconds: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+    completed: {
+      type: Boolean,
+      default: false,
+    },
+
+    completedAt: {
+      type: Date,
+      default: null,
+    },
+
+    lastWatchedAt: {
+      type: Date,
+      default: Date.now,
+    },
+  },
+  {
+    _id: false,
+  },
+);
+
 const progressSchema = new mongoose.Schema(
   {
     user: {
@@ -19,12 +58,29 @@ const progressSchema = new mongoose.Schema(
       default: [],
     },
 
+    lessonProgress: {
+      type: [lessonProgressSchema],
+      default: [],
+    },
+
     lastAccessedLesson: {
       type: String,
       default: "",
     },
+
+    lastAccessedSection: {
+      type: String,
+      default: "",
+    },
+
+    lastAccessedAt: {
+      type: Date,
+      default: Date.now,
+    },
   },
-  { timestamps: true },
+  {
+    timestamps: true,
+  },
 );
 
 progressSchema.index(

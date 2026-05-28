@@ -2,6 +2,7 @@ import crypto from "crypto";
 import Razorpay from "razorpay";
 import Course from "../models/Course.js";
 import Order from "../models/Order.js";
+import { createActivity, createNotification } from "../utils/activityHelper.js";
 
 const getRazorpayInstance = () => {
   if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
@@ -61,6 +62,31 @@ export const createOrder = async (req, res) => {
       course.students.addToSet(req.user._id);
       await course.save();
 
+      await createActivity({
+        user: req.user._id,
+        role: "student",
+        type: "course_enrolled",
+        title: "Course Enrolled",
+        message: `You enrolled in ${course.title}`,
+        course: course._id,
+      });
+
+      await createNotification({
+        recipient: req.user._id,
+        type: "course_purchase",
+        title: "Course Enrollment Successful",
+        message: `You successfully enrolled in ${course.title}`,
+        course: course._id,
+      });
+
+      await createNotification({
+        recipient: course.instructor,
+        type: "new_student_enrolled",
+        title: "New Student Enrollment",
+        message: `${req.user.name || "A student"} enrolled in ${course.title}`,
+        course: course._id,
+      });
+
       return res.status(200).json({
         success: true,
         free: true,
@@ -68,7 +94,6 @@ export const createOrder = async (req, res) => {
         course,
       });
     }
-
     const existingPaidOrder = await Order.findOne({
       user: req.user._id,
       course: course._id,
@@ -207,6 +232,31 @@ export const verifyPayment = async (req, res) => {
     order.razorpaySignature = razorpay_signature;
 
     await order.save();
+
+    await createActivity({
+      user: req.user._id,
+      role: "student",
+      type: "course_enrolled",
+      title: "Course Purchased",
+      message: `You purchased ${course.title}`,
+      course: course._id,
+    });
+
+    await createNotification({
+      recipient: req.user._id,
+      type: "course_purchase",
+      title: "Payment Successful",
+      message: `You purchased ${course.title}`,
+      course: course._id,
+    });
+
+    await createNotification({
+      recipient: course.instructor,
+      type: "new_student_enrolled",
+      title: "New Course Purchase",
+      message: `${req.user.name || "A student"} purchased ${course.title}`,
+      course: course._id,
+    });
 
     return res.status(200).json({
       success: true,

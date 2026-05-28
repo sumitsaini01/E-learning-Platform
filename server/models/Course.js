@@ -190,7 +190,7 @@ const courseSchema = new mongoose.Schema(
 courseSchema.index({ title: "text", category: "text" });
 
 courseSchema.virtual("studentCount").get(function () {
-  return this.students.length;
+  return this.students?.length || 0;
 });
 
 courseSchema.set("toJSON", {

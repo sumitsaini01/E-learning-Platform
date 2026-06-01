@@ -91,6 +91,12 @@ export const createCourse = async (payload) => {
   return response.data;
 };
 
+export const generateCourseDescription = async (payload) => {
+  const response = await api.post("/courses/generate-description", payload);
+
+  return response.data;
+};
+
 export const getInstructorCourses = async () => {
   const response = await api.get("/courses/instructor/courses");
 

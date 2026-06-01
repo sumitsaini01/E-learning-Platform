@@ -102,6 +102,18 @@ const quizSchema = new mongoose.Schema(
       default: "draft",
     },
 
+    source: {
+      type: String,
+      enum: ["manual", "ai"],
+      default: "manual",
+    },
+
+    aiPrompt: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
     instructor: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",

@@ -12,6 +12,7 @@ import quizRoutes from "./routes/quizRoutes.js";
 import certificateRoutes from "./routes/certificateRoutes.js";
 import activityRoutes from "./routes/activityRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
+import uploadRoutes from "./routes/uploadRoutes.js";
 
 const PORT = process.env.PORT || 5000;
 
@@ -28,7 +29,8 @@ const startServer = async () => {
     app.use("/api/certificates", certificateRoutes);
     app.use("/api/activities", activityRoutes);
     app.use("/api/notifications", notificationRoutes);
-
+    app.use("/api/uploads", uploadRoutes);
+    
     app.use(notFound);
     app.use(errorHandler);
 

@@ -17,6 +17,7 @@ import StudentDashboard from "../pages/StudentDashboard";
 import UnauthorizedPage from "../pages/UnauthorizedPage";
 import ProtectedRoute from "./ProtectedRoute";
 import CertificateVerificationPage from "../pages/CertificateVerificationPage";
+import MyCertificatesPage from "../pages/MyCertificatesPage";
 
 function AppRoutes() {
   return (
@@ -36,6 +37,9 @@ function AppRoutes() {
 
         <Route element={<ProtectedRoute allowedRoles={["student"]} />}>
           <Route path="dashboard/student" element={<StudentDashboard />} />
+
+          <Route path="my-certificates" element={<MyCertificatesPage />} />
+
           <Route path="quizzes/:quizId/attempt" element={<QuizAttemptPage />} />
         </Route>
 

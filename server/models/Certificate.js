@@ -82,13 +82,15 @@ certificateSchema.index(
   },
 );
 
-certificateSchema.pre("validate", function () {
+certificateSchema.pre("validate", function (next) {
   if (!this.certificateId) {
     this.certificateId = `CERT-${crypto
       .randomBytes(6)
       .toString("hex")
       .toUpperCase()}`;
   }
+
+  next();
 });
 
 const Certificate = mongoose.model("Certificate", certificateSchema);

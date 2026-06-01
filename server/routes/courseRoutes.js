@@ -4,6 +4,7 @@ import {
   addSection,
   createCourse,
   createCourseReview,
+  generateCourseDescription,
   deleteCourse,
   deleteCourseReview,
   deleteLesson,
@@ -27,6 +28,12 @@ import { authorizeRoles, protect } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
+router.post(
+  "/generate-description",
+  protect,
+  authorizeRoles("instructor", "admin"),
+  generateCourseDescription,
+);
 router.post("/", protect, authorizeRoles("instructor", "admin"), createCourse);
 
 router.get(

@@ -7,8 +7,8 @@ import User from "../models/User.js";
 import { createActivity, createNotification } from "../utils/activityHelper.js";
 
 const getTotalLessons = (course) => {
-  return course.sections.reduce((total, section) => {
-    return total + section.lessons.length;
+  return (course.sections || []).reduce((total, section) => {
+    return total + (section.lessons?.length || 0);
   }, 0);
 };
 
@@ -107,6 +107,7 @@ export const generateCertificate = async (req, res) => {
     const existingCertificate = await Certificate.findOne({
       user: req.user._id,
       course: courseId,
+      status: "active",
     });
 
     const studentName = await getStudentName(req.user);

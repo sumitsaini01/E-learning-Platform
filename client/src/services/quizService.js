@@ -12,6 +12,11 @@ export const createQuiz = async (payload) => {
   return response.data;
 };
 
+export const generateAIQuiz = async (payload) => {
+  const response = await api.post("/quizzes/generate-ai", payload);
+
+  return response.data;
+};
 export const getInstructorQuizzes = async () => {
   const response = await api.get("/quizzes/instructor");
 
@@ -70,12 +75,23 @@ export const getQuizById = async (quizId) => {
 |--------------------------------------------------------------------------
 */
 
-export const submitQuizAttempt = async (quizId, answers) => {
+export const startQuizAttempt = async (quizId) => {
+  if (!quizId) {
+    throw new Error("Quiz ID is required");
+  }
+
+  const response = await api.post(`/quizzes/${quizId}/start`);
+
+  return response.data;
+};
+
+export const submitQuizAttempt = async (quizId, attemptId, answers) => {
   if (!quizId) {
     throw new Error("Quiz ID is required");
   }
 
   const response = await api.post(`/quizzes/${quizId}/attempt`, {
+    attemptId,
     answers,
   });
 

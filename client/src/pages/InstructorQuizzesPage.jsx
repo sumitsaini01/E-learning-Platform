@@ -4,6 +4,7 @@ import { getInstructorCourses } from "../services/courseService";
 import {
   createQuiz,
   deleteQuiz,
+  generateAIQuiz,
   getInstructorQuizzes,
   updateQuiz,
 } from "../services/quizService";
@@ -27,6 +28,8 @@ const initialQuizForm = {
   timeLimitMinutes: 0,
   maxAttempts: 0,
   status: "draft",
+  source: "manual",
+  aiPrompt: "",
   questions: [{ ...emptyQuestion }],
 };
 
@@ -46,6 +49,14 @@ function InstructorQuizzesPage() {
   const [success, setSuccess] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+
+  const [aiForm, setAiForm] = useState({
+    topic: "",
+    difficulty: "intermediate",
+    questionCount: 5,
+  });
 
   const selectedCourse = useMemo(() => {
     return courses.find((course) => {
@@ -175,7 +186,8 @@ function InstructorQuizzesPage() {
 
   const cleanPayload = () => {
     const sectionId =
-      formData.placementType === "section" || formData.placementType === "lesson"
+      formData.placementType === "section" ||
+      formData.placementType === "lesson"
         ? formData.sectionId
         : "";
 
@@ -192,6 +204,8 @@ function InstructorQuizzesPage() {
       timeLimitMinutes: Number(formData.timeLimitMinutes) || 0,
       maxAttempts: Number(formData.maxAttempts) || 0,
       status: formData.status,
+      source: formData.source || "manual",
+      aiPrompt: formData.aiPrompt || "",
       questions: formData.questions.map((question) => ({
         questionText: question.questionText.trim(),
         options: question.options.map((option) => option.trim()),
@@ -235,6 +249,57 @@ function InstructorQuizzesPage() {
     }
 
     return "";
+  };
+
+  const handleGenerateAIQuiz = async () => {
+    if (!formData.courseId) {
+      setError("Please select a course before generating AI questions.");
+      return;
+    }
+
+    if (!aiForm.topic.trim()) {
+      setError("Please enter a topic for AI quiz generation.");
+      return;
+    }
+
+    try {
+      setError("");
+      setSuccess("");
+      setIsGeneratingAI(true);
+
+      const data = await generateAIQuiz({
+        courseId: formData.courseId,
+        topic: aiForm.topic.trim(),
+        difficulty: aiForm.difficulty,
+        questionCount: Number(aiForm.questionCount) || 5,
+      });
+
+      if (!data.questions?.length) {
+        setError("AI did not generate any valid questions. Try another topic.");
+        return;
+      }
+
+      setFormData((current) => ({
+        ...current,
+        title: current.title || `${aiForm.topic.trim()} Quiz`,
+        description:
+          current.description ||
+          `AI-generated ${aiForm.difficulty} level quiz on ${aiForm.topic.trim()}.`,
+        source: "ai",
+        aiPrompt: aiForm.topic.trim(),
+        questions: data.questions,
+      }));
+
+      setSuccess(
+        "AI questions generated successfully. Review them before saving.",
+      );
+    } catch (err) {
+      setError(
+        err.response?.data?.message || "Unable to generate AI quiz questions.",
+      );
+    } finally {
+      setIsGeneratingAI(false);
+    }
   };
 
   const handleSubmit = async (event) => {
@@ -373,7 +438,8 @@ function InstructorQuizzesPage() {
             </h1>
 
             <p className="mt-3 text-sm leading-6 text-zinc-600">
-              Create quizzes for a full course, a specific section, or one lesson.
+              Create quizzes for a full course, a specific section, or one
+              lesson.
             </p>
           </div>
 
@@ -431,7 +497,9 @@ function InstructorQuizzesPage() {
             <input
               type="text"
               value={formData.title}
-              onChange={(event) => handleFormChange("title", event.target.value)}
+              onChange={(event) =>
+                handleFormChange("title", event.target.value)
+              }
               placeholder="Example: JavaScript Basics Quiz"
               className="mt-2 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
               required
@@ -478,10 +546,95 @@ function InstructorQuizzesPage() {
           />
         </div>
 
+        <div className="mt-6 rounded-lg border border-emerald-200 bg-emerald-50/40 p-5">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h3 className="font-semibold text-zinc-950">AI Quiz Generator</h3>
+              <p className="mt-1 text-sm text-zinc-600">
+                Generate quiz questions using AI, then review and edit before
+                saving.
+              </p>
+            </div>
+
+            <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800">
+              New
+            </span>
+          </div>
+
+          <div className="mt-4 grid gap-4 sm:grid-cols-[1fr_180px_160px]">
+            <div>
+              <label className="block text-sm font-medium text-zinc-800">
+                Topic / Prompt
+              </label>
+              <input
+                type="text"
+                value={aiForm.topic}
+                onChange={(event) =>
+                  setAiForm((current) => ({
+                    ...current,
+                    topic: event.target.value,
+                  }))
+                }
+                placeholder="Example: React Hooks, MongoDB Aggregation, DSA Arrays"
+                className="mt-2 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-zinc-800">
+                Difficulty
+              </label>
+              <select
+                value={aiForm.difficulty}
+                onChange={(event) =>
+                  setAiForm((current) => ({
+                    ...current,
+                    difficulty: event.target.value,
+                  }))
+                }
+                className="mt-2 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
+              >
+                <option value="beginner">Beginner</option>
+                <option value="intermediate">Intermediate</option>
+                <option value="advanced">Advanced</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-zinc-800">
+                Questions
+              </label>
+              <input
+                type="number"
+                min="1"
+                max="20"
+                value={aiForm.questionCount}
+                onChange={(event) =>
+                  setAiForm((current) => ({
+                    ...current,
+                    questionCount: event.target.value,
+                  }))
+                }
+                className="mt-2 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
+              />
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleGenerateAIQuiz}
+            disabled={isGeneratingAI}
+            className="mt-4 rounded-md bg-emerald-700 px-5 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-emerald-400"
+          >
+            {isGeneratingAI ? "Generating..." : "Generate Questions with AI"}
+          </button>
+        </div>
+
         <div className="mt-6 rounded-lg border border-zinc-200 bg-stone-50 p-5">
           <h3 className="font-semibold text-zinc-950">Quiz Placement</h3>
           <p className="mt-1 text-sm text-zinc-600">
-            Choose where this quiz belongs. Course quiz is usually used as a final quiz.
+            Choose where this quiz belongs. Course quiz is usually used as a
+            final quiz.
           </p>
 
           <div className="mt-4 grid gap-3 sm:grid-cols-3">

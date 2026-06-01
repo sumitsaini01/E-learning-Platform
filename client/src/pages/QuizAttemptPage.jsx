@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { getQuizById, submitQuizAttempt } from "../services/quizService";
+import {
+  getQuizById,
+  startQuizAttempt,
+  submitQuizAttempt,
+} from "../services/quizService";
 
 function QuizAttemptPage() {
   const { quizId } = useParams();
@@ -13,19 +17,36 @@ function QuizAttemptPage() {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(null);
+  const [hasAutoSubmitted, setHasAutoSubmitted] = useState(false);
+  const [attempt, setAttempt] = useState(null);
 
   useEffect(() => {
     let shouldUpdate = true;
 
-    const loadQuiz = async () => {
+    const loadQuizAndStartAttempt = async () => {
       try {
         setError("");
 
-        const data = await getQuizById(quizId);
+        const quizData = await getQuizById(quizId);
+        const attemptData = await startQuizAttempt(quizId);
 
         if (!shouldUpdate) return;
 
-        setQuiz(data.quiz);
+        setQuiz(quizData.quiz);
+        setAttempt(attemptData.attempt);
+
+        if (attemptData.attempt?.expiresAt) {
+          const remainingSeconds = Math.max(
+            Math.floor(
+              (new Date(attemptData.attempt.expiresAt).getTime() - Date.now()) /
+                1000,
+            ),
+            0,
+          );
+
+          setTimeLeft(remainingSeconds);
+        }
       } catch (err) {
         if (!shouldUpdate) return;
 
@@ -37,12 +58,28 @@ function QuizAttemptPage() {
       }
     };
 
-    loadQuiz();
+    loadQuizAndStartAttempt();
 
     return () => {
       shouldUpdate = false;
     };
   }, [quizId]);
+
+  useEffect(() => {
+    if (timeLeft === null || result) return;
+
+    if (timeLeft <= 0 && !hasAutoSubmitted) {
+      setHasAutoSubmitted(true);
+      handleSubmit(null, true);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setTimeLeft((current) => (current === null ? null : current - 1));
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [timeLeft, result, hasAutoSubmitted]);
 
   const answeredCount = useMemo(() => {
     return Object.keys(answers).length;
@@ -58,10 +95,15 @@ function QuizAttemptPage() {
     }));
   };
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
+  const handleSubmit = async (event, isAutoSubmit = false) => {
+    event?.preventDefault();
 
-    if (!canSubmit) {
+    if (!attempt?._id) {
+      setError("Quiz attempt was not started properly.");
+      return;
+    }
+
+    if (!canSubmit && !isAutoSubmit) {
       setError("Please answer all questions before submitting.");
       return;
     }
@@ -77,7 +119,11 @@ function QuizAttemptPage() {
         }),
       );
 
-      const data = await submitQuizAttempt(quizId, formattedAnswers);
+      const data = await submitQuizAttempt(
+        quizId,
+        attempt._id,
+        formattedAnswers,
+      );
 
       setResult(data.result);
       setReview(data.review || []);
@@ -173,7 +219,10 @@ function QuizAttemptPage() {
 
           {quiz.timeLimitMinutes > 0 ? (
             <span className="rounded-full bg-blue-100 px-3 py-1 font-medium text-blue-800">
-              {quiz.timeLimitMinutes} min
+              Time Left:{" "}
+              {timeLeft !== null
+                ? `${Math.floor(timeLeft / 60)}:${String(timeLeft % 60).padStart(2, "0")}`
+                : `${quiz.timeLimitMinutes} min`}
             </span>
           ) : null}
         </div>
@@ -250,7 +299,8 @@ function QuizAttemptPage() {
                       }`}
                     >
                       {questionReview.isCorrect ? "Correct" : "Wrong"} •{" "}
-                      {questionReview.pointsEarned}/{questionReview.points} marks
+                      {questionReview.pointsEarned}/{questionReview.points}{" "}
+                      marks
                     </span>
                   </div>
 
@@ -361,7 +411,7 @@ function QuizAttemptPage() {
 
           <button
             type="submit"
-            disabled={isSubmitting || !canSubmit}
+            disabled={isSubmitting || (!canSubmit && timeLeft !== 0)}
             className="rounded-md bg-emerald-700 px-5 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-emerald-400"
           >
             {isSubmitting ? "Submitting..." : "Submit Quiz"}

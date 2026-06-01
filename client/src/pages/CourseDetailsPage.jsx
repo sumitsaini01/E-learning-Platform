@@ -293,6 +293,7 @@ function CourseDetailsPage() {
 
       if (isFreeCourse) {
         await handleFreeEnroll();
+        setIsEnrolling(false);
         return;
       }
 
@@ -300,6 +301,7 @@ function CourseDetailsPage() {
 
       if (!scriptLoaded) {
         setEnrollError("Unable to load Razorpay. Please check your internet.");
+        setIsEnrolling(false);
         return;
       }
 
@@ -308,6 +310,7 @@ function CourseDetailsPage() {
       if (orderData.free) {
         if (orderData.course) setCourse(orderData.course);
         setEnrollMessage(orderData.message || "Successfully enrolled.");
+        setIsEnrolling(false);
         return;
       }
 
@@ -347,16 +350,20 @@ function CourseDetailsPage() {
               verifiedData.message ||
                 "Payment successful. You are enrolled in this course.",
             );
+
+            setIsEnrolling(false);
           } catch (err) {
             setEnrollError(
               err.response?.data?.message ||
                 "Payment completed but verification failed.",
             );
+            setIsEnrolling(false);
           }
         },
         modal: {
           ondismiss: () => {
             setEnrollError("Payment cancelled.");
+            setIsEnrolling(false);
           },
         },
       };
@@ -365,7 +372,6 @@ function CourseDetailsPage() {
       razorpay.open();
     } catch (err) {
       setEnrollError(err.response?.data?.message || "Unable to start payment.");
-    } finally {
       setIsEnrolling(false);
     }
   };

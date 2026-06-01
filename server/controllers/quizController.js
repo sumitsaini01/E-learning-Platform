@@ -3,6 +3,7 @@ import Course from "../models/Course.js";
 import Quiz from "../models/Quiz.js";
 import QuizAttempt from "../models/QuizAttempt.js";
 import { createActivity, createNotification } from "../utils/activityHelper.js";
+import { generateQuizQuestionsWithAI } from "../services/aiQuizService.js";
 
 const sendServerError = (res, message, error) => {
   return res.status(500).json({
@@ -44,6 +45,110 @@ const removeCorrectAnswers = (quiz) => {
   return quizObject;
 };
 
+export const generateAIQuiz = async (req, res) => {
+  try {
+    const {
+      courseId,
+      topic,
+      difficulty = "intermediate",
+      questionCount = 5,
+    } = req.body;
+
+    if (!courseId || !topic?.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "Course ID and topic are required",
+      });
+    }
+
+    const course = await Course.findById(courseId);
+
+    const ownershipError = validateCourseOwnership(course, req.user);
+
+    if (ownershipError) {
+      return res.status(ownershipError.status).json({
+        success: false,
+        message: ownershipError.message,
+      });
+    }
+
+    const questions = await generateQuizQuestionsWithAI({
+      topic,
+      difficulty,
+      questionCount,
+      courseTitle: course.title,
+      courseDescription: course.description,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "AI quiz generated successfully",
+      questions,
+    });
+  } catch (error) {
+    console.error("AI quiz generation error:", error.message);
+
+    return sendServerError(res, "Failed to generate AI quiz", error);
+  }
+};
+
+const validateQuestions = (questions = []) => {
+  for (const [index, question] of questions.entries()) {
+    if (!question.questionText?.trim()) {
+      return `Question ${index + 1}: question text is required`;
+    }
+
+    if (!Array.isArray(question.options) || question.options.length < 2) {
+      return `Question ${index + 1}: at least two options are required`;
+    }
+
+    const correctOptionIndex = Number(question.correctOptionIndex);
+
+    if (
+      Number.isNaN(correctOptionIndex) ||
+      correctOptionIndex < 0 ||
+      correctOptionIndex >= question.options.length
+    ) {
+      return `Question ${index + 1}: correct option index is invalid`;
+    }
+  }
+
+  return null;
+};
+
+const shuffleOptionsAndCorrectIndex = (question) => {
+  const correctAnswer = question.options[Number(question.correctOptionIndex)];
+
+  const shuffledOptions = [...question.options]
+    .map((option) => ({
+      value: option,
+      sort: Math.random(),
+    }))
+    .sort((a, b) => a.sort - b.sort)
+    .map((item) => item.value);
+
+  return {
+    ...question,
+    options: shuffledOptions,
+    correctOptionIndex: shuffledOptions.findIndex(
+      (option) => option === correctAnswer,
+    ),
+  };
+};
+
+const prepareQuestionsForSave = (questions = []) => {
+  return questions.map((question) =>
+    shuffleOptionsAndCorrectIndex({
+      ...question,
+      questionText: question.questionText.trim(),
+      options: question.options.map((option) => option.trim()),
+      correctOptionIndex: Number(question.correctOptionIndex),
+      explanation: question.explanation?.trim() || "",
+      points: Number(question.points) || 1,
+    }),
+  );
+};
+
 export const createQuiz = async (req, res) => {
   try {
     const {
@@ -57,12 +162,23 @@ export const createQuiz = async (req, res) => {
       timeLimitMinutes,
       maxAttempts,
       status,
+      source,
+      aiPrompt,
     } = req.body;
 
     if (!title?.trim() || !courseId) {
       return res.status(400).json({
         success: false,
         message: "Quiz title and course ID are required",
+      });
+    }
+
+    const questionError = validateQuestions(questions);
+
+    if (questionError) {
+      return res.status(400).json({
+        success: false,
+        message: questionError,
       });
     }
 
@@ -83,11 +199,13 @@ export const createQuiz = async (req, res) => {
       course: courseId,
       sectionId: sectionId || "",
       lessonId: lessonId || "",
-      questions,
+      questions: prepareQuestionsForSave(questions),
       passingPercentage: passingPercentage ?? 60,
       timeLimitMinutes: timeLimitMinutes ?? 0,
       maxAttempts: maxAttempts ?? 0,
       status: status || "draft",
+      source: source || "manual",
+      aiPrompt: aiPrompt?.trim() || "",
       instructor: req.user._id,
     });
 
@@ -250,6 +368,17 @@ export const updateQuiz = async (req, res) => {
       });
     }
 
+    if (req.body.questions !== undefined) {
+      const questionError = validateQuestions(req.body.questions);
+
+      if (questionError) {
+        return res.status(400).json({
+          success: false,
+          message: questionError,
+        });
+      }
+    }
+
     const allowedFields = [
       "title",
       "description",
@@ -260,11 +389,17 @@ export const updateQuiz = async (req, res) => {
       "timeLimitMinutes",
       "maxAttempts",
       "status",
+      "source",
+      "aiPrompt",
     ];
 
     allowedFields.forEach((field) => {
       if (req.body[field] !== undefined) {
-        quiz[field] = req.body[field];
+        if (field === "questions") {
+          quiz.questions = prepareQuestionsForSave(req.body.questions);
+        } else {
+          quiz[field] = req.body[field];
+        }
       }
     });
 
@@ -316,10 +451,9 @@ export const deleteQuiz = async (req, res) => {
   }
 };
 
-export const submitQuizAttempt = async (req, res) => {
+export const startQuizAttempt = async (req, res) => {
   try {
     const { quizId } = req.params;
-    const { answers = [] } = req.body;
 
     const quiz = await Quiz.findById(quizId);
 
@@ -342,12 +476,111 @@ export const submitQuizAttempt = async (req, res) => {
     const previousAttempts = await QuizAttempt.countDocuments({
       quiz: quizId,
       user: req.user._id,
+      status: { $ne: "in_progress" },
     });
 
     if (quiz.maxAttempts > 0 && previousAttempts >= quiz.maxAttempts) {
       return res.status(403).json({
         success: false,
         message: "Maximum quiz attempts reached",
+      });
+    }
+
+    let activeAttempt = await QuizAttempt.findOne({
+      quiz: quizId,
+      user: req.user._id,
+      status: "in_progress",
+    });
+
+    if (activeAttempt) {
+      return res.status(200).json({
+        success: true,
+        message: "Existing quiz attempt resumed",
+        attempt: activeAttempt,
+      });
+    }
+
+    const now = new Date();
+
+    const expiresAt =
+      quiz.timeLimitMinutes > 0
+        ? new Date(now.getTime() + quiz.timeLimitMinutes * 60 * 1000)
+        : null;
+
+    const attempt = await QuizAttempt.create({
+      quiz: quizId,
+      course: quiz.course,
+      user: req.user._id,
+      attemptNumber: previousAttempts + 1,
+      startedAt: now,
+      expiresAt,
+      status: "in_progress",
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: "Quiz attempt started",
+      attempt,
+    });
+  } catch (error) {
+    return sendServerError(res, "Failed to start quiz attempt", error);
+  }
+};
+
+export const submitQuizAttempt = async (req, res) => {
+  try {
+    const { quizId } = req.params;
+    const { answers = [], attemptId } = req.body;
+
+    if (!attemptId) {
+      return res.status(400).json({
+        success: false,
+        message: "Attempt ID is required",
+      });
+    }
+
+    const quiz = await Quiz.findById(quizId);
+
+    if (!quiz || quiz.status !== "published") {
+      return res.status(404).json({
+        success: false,
+        message: "Published quiz not found",
+      });
+    }
+
+    const course = await Course.findById(quiz.course);
+
+    if (!course || !isStudentEnrolled(course, req.user._id)) {
+      return res.status(403).json({
+        success: false,
+        message: "Only enrolled students can attempt this quiz",
+      });
+    }
+
+    const attempt = await QuizAttempt.findOne({
+      _id: attemptId,
+      quiz: quizId,
+      user: req.user._id,
+      status: "in_progress",
+    });
+
+    if (!attempt) {
+      return res.status(404).json({
+        success: false,
+        message: "Active quiz attempt not found",
+      });
+    }
+
+    const now = new Date();
+
+    if (attempt.expiresAt && now > attempt.expiresAt) {
+      attempt.status = "expired";
+      attempt.submittedAt = now;
+      await attempt.save();
+
+      return res.status(403).json({
+        success: false,
+        message: "Quiz time expired",
       });
     }
 
@@ -389,18 +622,15 @@ export const submitQuizAttempt = async (req, res) => {
 
     const passed = percentage >= quiz.passingPercentage;
 
-    const attempt = await QuizAttempt.create({
-      quiz: quizId,
-      course: quiz.course,
-      user: req.user._id,
-      answers: evaluatedAnswers,
-      score,
-      totalPoints,
-      percentage,
-      passed,
-      attemptNumber: previousAttempts + 1,
-      submittedAt: new Date(),
-    });
+    attempt.answers = evaluatedAnswers;
+    attempt.score = score;
+    attempt.totalPoints = totalPoints;
+    attempt.percentage = percentage;
+    attempt.passed = passed;
+    attempt.status = "submitted";
+    attempt.submittedAt = new Date();
+
+    await attempt.save();
 
     await createActivity({
       user: req.user._id,
@@ -449,7 +679,7 @@ export const submitQuizAttempt = async (req, res) => {
         percentage,
         passed,
         passingPercentage: quiz.passingPercentage,
-        attemptNumber: previousAttempts + 1,
+        attemptNumber: attempt.attemptNumber,
       },
       review,
     });

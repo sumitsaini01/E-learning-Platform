@@ -131,7 +131,14 @@ function CertificateVerificationPage() {
     );
   }
 
-  const issuedDate = new Date(certificate.issuedAt).toLocaleDateString();
+  const issuedDate = new Date(certificate.issuedAt).toLocaleDateString(
+    "en-IN",
+    {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+    },
+  );
 
   return (
     <section className="mx-auto max-w-6xl">
@@ -172,9 +179,7 @@ function CertificateVerificationPage() {
         <div className="absolute inset-8 border-4 border-amber-400" />
         <div className="absolute inset-11 border border-emerald-900/30" />
 
-        <div className="absolute left-14 top-14 text-5xl text-amber-400">
-          ❦
-        </div>
+        <div className="absolute left-14 top-14 text-5xl text-amber-400">❦</div>
         <div className="absolute right-14 top-14 text-5xl text-amber-400">
           ❦
         </div>
@@ -249,9 +254,7 @@ function CertificateVerificationPage() {
               <p className="mt-2 text-xs font-black uppercase tracking-wide text-emerald-950">
                 Date
               </p>
-              <p className="text-sm font-bold text-emerald-800">
-                {issuedDate}
-              </p>
+              <p className="text-sm font-bold text-emerald-800">{issuedDate}</p>
             </div>
           </div>
         </div>

@@ -88,9 +88,20 @@ const quizAttemptSchema = new mongoose.Schema(
       default: Date.now,
     },
 
+    expiresAt: {
+      type: Date,
+      default: null,
+    },
+
     submittedAt: {
       type: Date,
-      default: Date.now,
+      default: null,
+    },
+
+    status: {
+      type: String,
+      enum: ["in_progress", "submitted", "expired"],
+      default: "in_progress",
     },
   },
   {
@@ -98,7 +109,11 @@ const quizAttemptSchema = new mongoose.Schema(
   },
 );
 
-quizAttemptSchema.index({ user: 1, quiz: 1 });
+quizAttemptSchema.index({
+  user: 1,
+  quiz: 1,
+  attemptNumber: 1,
+});
 quizAttemptSchema.index({ course: 1 });
 quizAttemptSchema.index({ user: 1, course: 1 });
 

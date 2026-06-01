@@ -15,6 +15,7 @@ import {
   updateLesson,
   updateSection,
 } from "../services/courseService";
+import { uploadVideo } from "../services/uploadService";
 import { courseCategories } from "../constants/coursecategories";
 
 const initialFormState = {
@@ -47,6 +48,7 @@ function EditCoursePage() {
   });
   const [lessonForms, setLessonForms] = useState({});
   const [curriculumLoadingId, setCurriculumLoadingId] = useState("");
+  const [videoUploadingId, setVideoUploadingId] = useState("");
 
   const [editingSectionId, setEditingSectionId] = useState("");
   const [sectionEditForms, setSectionEditForms] = useState({});
@@ -254,6 +256,70 @@ function EditCoursePage() {
         [field]: value,
       },
     }));
+  };
+
+  const handleLessonVideoUpload = async (sectionId, file) => {
+    if (!file) return;
+
+    try {
+      setError("");
+      setVideoUploadingId(sectionId);
+
+      const data = await uploadVideo(file);
+
+      setLessonForms((current) => ({
+        ...current,
+        [sectionId]: {
+          ...current[sectionId],
+          videoUrl: data.url,
+          duration: data.duration ? Math.ceil(Number(data.duration) / 60) : "",
+        },
+      }));
+    } catch (err) {
+      const message =
+        err.response?.data?.error ||
+        err.response?.data?.message ||
+        err.message ||
+        "Video upload failed.";
+
+      setError(message);
+      alert(message);
+    } finally {
+      setVideoUploadingId("");
+    }
+  };
+
+  const handleLessonEditVideoUpload = async (lessonId, file) => {
+    if (!file) return;
+
+    try {
+      setError("");
+      setVideoUploadingId(lessonId);
+
+      const data = await uploadVideo(file);
+
+      setLessonEditForms((current) => ({
+        ...current,
+        [lessonId]: {
+          ...current[lessonId],
+          videoUrl: data.url,
+          duration: data.duration
+            ? Math.ceil(Number(data.duration) / 60)
+            : current[lessonId]?.duration || "",
+        },
+      }));
+    } catch (err) {
+      const message =
+        err.response?.data?.error ||
+        err.response?.data?.message ||
+        err.message ||
+        "Video upload failed.";
+
+      setError(message);
+      alert(message);
+    } finally {
+      setVideoUploadingId("");
+    }
   };
 
   const handleAddLesson = async (sectionId) => {
@@ -718,20 +784,33 @@ function EditCoursePage() {
                                   placeholder="Lesson description"
                                 />
 
-                                <input
-                                  value={
-                                    lessonEditForms[lesson._id]?.videoUrl || ""
-                                  }
-                                  onChange={(event) =>
-                                    handleLessonEditChange(
-                                      lesson._id,
-                                      "videoUrl",
-                                      event.target.value,
-                                    )
-                                  }
-                                  className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
-                                  placeholder="Video URL"
-                                />
+                                <div>
+                                  <input
+                                    type="file"
+                                    accept="video/*"
+                                    onChange={(event) =>
+                                      handleLessonEditVideoUpload(
+                                        lesson._id,
+                                        event.target.files[0],
+                                      )
+                                    }
+                                    className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+                                  />
+
+                                  {videoUploadingId === lesson._id ? (
+                                    <p className="mt-2 text-sm text-emerald-700">
+                                      Uploading video...
+                                    </p>
+                                  ) : null}
+
+                                  {lessonEditForms[lesson._id]?.videoUrl ? (
+                                    <video
+                                      src={lessonEditForms[lesson._id].videoUrl}
+                                      controls
+                                      className="mt-3 w-full rounded-md"
+                                    />
+                                  ) : null}
+                                </div>
 
                                 <input
                                   type="number"
@@ -910,19 +989,33 @@ function EditCoursePage() {
                           className="min-h-24 rounded-md border border-zinc-300 px-3 py-2 text-sm"
                         />
 
-                        <input
-                          type="text"
-                          value={lessonForms[section._id]?.videoUrl || ""}
-                          onChange={(event) =>
-                            handleLessonFormChange(
-                              section._id,
-                              "videoUrl",
-                              event.target.value,
-                            )
-                          }
-                          placeholder="Video URL"
-                          className="rounded-md border border-zinc-300 px-3 py-2 text-sm"
-                        />
+                        <div>
+                          <input
+                            type="file"
+                            accept="video/*"
+                            onChange={(event) =>
+                              handleLessonVideoUpload(
+                                section._id,
+                                event.target.files[0],
+                              )
+                            }
+                            className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+                          />
+
+                          {videoUploadingId === section._id ? (
+                            <p className="mt-2 text-sm text-emerald-700">
+                              Uploading video...
+                            </p>
+                          ) : null}
+
+                          {lessonForms[section._id]?.videoUrl ? (
+                            <video
+                              src={lessonForms[section._id].videoUrl}
+                              controls
+                              className="mt-3 w-full rounded-md"
+                            />
+                          ) : null}
+                        </div>
 
                         <input
                           type="number"

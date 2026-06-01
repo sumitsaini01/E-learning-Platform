@@ -2,6 +2,12 @@ import Course from "../models/Course.js";
 import Progress from "../models/Progress.js";
 import { createActivity } from "../utils/activityHelper.js";
 
+const isStudentEnrolled = (course, userId) => {
+  return course.students.some(
+    (studentId) => studentId.toString() === userId.toString(),
+  );
+};
+
 const getAllLessons = (course) => {
   const lessons = [];
 
@@ -110,6 +116,13 @@ export const markLessonComplete = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: "Course not found",
+      });
+    }
+
+    if (!isStudentEnrolled(course, req.user._id)) {
+      return res.status(403).json({
+        success: false,
+        message: "Please enroll in this course to track progress",
       });
     }
 
@@ -227,6 +240,13 @@ export const updateLessonWatchProgress = async (req, res) => {
       });
     }
 
+    if (!isStudentEnrolled(course, req.user._id)) {
+      return res.status(403).json({
+        success: false,
+        message: "Please enroll in this course to track progress",
+      });
+    }
+
     const found = findLessonInCourse(course, lessonId);
 
     if (!found) {
@@ -326,6 +346,13 @@ export const getProgress = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: "Course not found",
+      });
+    }
+
+    if (!isStudentEnrolled(course, req.user._id)) {
+      return res.status(403).json({
+        success: false,
+        message: "Please enroll in this course to view progress",
       });
     }
 

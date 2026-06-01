@@ -3,26 +3,27 @@ import express from "express";
 import {
   createQuiz,
   deleteQuiz,
+  generateAIQuiz,
   getCourseQuizzes,
   getInstructorQuizzes,
   getMyQuizAttempts,
   getQuizById,
+  startQuizAttempt,
   submitQuizAttempt,
   updateQuiz,
 } from "../controllers/quizController.js";
 
-import {
-  authorizeRoles,
-  protect,
-} from "../middleware/authMiddleware.js";
+import { authorizeRoles, protect } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
+router.post("/", protect, authorizeRoles("instructor", "admin"), createQuiz);
+
 router.post(
-  "/",
+  "/generate-ai",
   protect,
   authorizeRoles("instructor", "admin"),
-  createQuiz,
+  generateAIQuiz,
 );
 
 router.get(
@@ -44,6 +45,13 @@ router.get(
   protect,
   authorizeRoles("student"),
   getMyQuizAttempts,
+);
+
+router.post(
+  "/:quizId/start",
+  protect,
+  authorizeRoles("student"),
+  startQuizAttempt,
 );
 
 router.get(

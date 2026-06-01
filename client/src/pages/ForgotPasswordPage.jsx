@@ -19,8 +19,6 @@ function ForgotPasswordPage() {
       const data = await forgotPassword(email);
 
       setMessage(data.message);
-
-      console.log("RESET URL:", data.resetUrl);
     } catch (err) {
       setError(
         err.response?.data?.message ||

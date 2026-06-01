@@ -24,6 +24,12 @@ const orderSchema = new mongoose.Schema(
       default: "INR",
     },
 
+    paymentProvider: {
+      type: String,
+      enum: ["razorpay", "free"],
+      default: "razorpay",
+    },
+
     status: {
       type: String,
       enum: ["created", "paid", "failed"],
@@ -51,7 +57,8 @@ const orderSchema = new mongoose.Schema(
 );
 
 orderSchema.index({ user: 1, course: 1 });
-orderSchema.index({ razorpayOrderId: 1 });
+orderSchema.index({ razorpayOrderId: 1 }, { unique: true });
+orderSchema.index({ user: 1, course: 1, status: 1 });
 
 const Order = mongoose.model("Order", orderSchema);
 

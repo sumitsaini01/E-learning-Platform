@@ -10,7 +10,7 @@ function ResetPasswordPage() {
 
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
@@ -24,19 +24,27 @@ function ResetPasswordPage() {
 
     setIsLoading(true);
 
+    if (password !== confirmPassword) {
+      setError("Passwords do not match");
+      setIsLoading(false);
+      return;
+    }
+
     try {
       const data = await resetPassword(token, password);
 
       setMessage(data.message);
 
       setTimeout(() => {
-        navigate("/login");
+        navigate("/login", {
+          state: {
+            message: "Password reset successful. Please login.",
+          },
+        });
       }, 2000);
     } catch (err) {
       setError(
-        err.response?.data?.message ||
-          err.message ||
-          "Password reset failed",
+        err.response?.data?.message || err.message || "Password reset failed",
       );
     } finally {
       setIsLoading(false);
@@ -94,13 +102,29 @@ function ResetPasswordPage() {
                 onClick={() => setShowPassword((prev) => !prev)}
                 className="absolute inset-y-0 right-0 flex items-center px-3 text-zinc-500 hover:text-zinc-800"
               >
-                {showPassword ? (
-                  <FiEyeOff size={18} />
-                ) : (
-                  <FiEye size={18} />
-                )}
+                {showPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
               </button>
             </div>
+          </div>
+
+          <div>
+            <label
+              htmlFor="confirmPassword"
+              className="block text-sm font-medium text-zinc-800"
+            >
+              Confirm Password
+            </label>
+
+            <input
+              id="confirmPassword"
+              type={showPassword ? "text" : "password"}
+              value={confirmPassword}
+              onChange={(event) => setConfirmPassword(event.target.value)}
+              className="mt-2 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
+              placeholder="Confirm new password"
+              minLength={6}
+              required
+            />
           </div>
 
           <button

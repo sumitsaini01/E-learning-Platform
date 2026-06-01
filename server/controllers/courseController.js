@@ -1,5 +1,11 @@
 import mongoose from "mongoose";
 import Course from "../models/Course.js";
+import User from "../models/User.js";
+import { generateCourseDescriptionWithAI } from "../services/aiQuizService.js";
+
+const escapeRegex = (value) => {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+};
 
 const validateCourseInput = ({ title, description, price, category }) => {
   if (
@@ -62,6 +68,40 @@ const getManagedCourse = async (courseId) => {
   return Course.findById(courseId);
 };
 
+export const generateCourseDescription = async (req, res) => {
+  try {
+    const {
+      title,
+      category = "",
+      level = "beginner",
+      targetAudience = "",
+    } = req.body;
+
+    if (!title?.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "Course title is required",
+      });
+    }
+
+    const generated = await generateCourseDescriptionWithAI({
+      title,
+      category,
+      level,
+      targetAudience,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Course description generated successfully",
+      ...generated,
+    });
+  } catch (error) {
+    console.error("AI course description error:", error.message);
+    return sendServerError(res, "Failed to generate course description", error);
+  }
+};
+
 export const createCourse = async (req, res) => {
   try {
     const validationError = validateCourseInput(req.body);
@@ -116,7 +156,25 @@ export const getCourses = async (req, res) => {
     }
 
     if (search?.trim()) {
-      filter.$text = { $search: search.trim() };
+      const searchText = search.trim();
+      const safeSearchText = escapeRegex(searchText);
+
+      const matchingInstructors = await User.find({
+        name: { $regex: safeSearchText, $options: "i" },
+      }).select("_id");
+
+      const instructorIds = matchingInstructors.map(
+        (instructor) => instructor._id,
+      );
+
+      filter.$or = [
+        { title: { $regex: safeSearchText, $options: "i" } },
+        { description: { $regex: safeSearchText, $options: "i" } },
+        { category: { $regex: safeSearchText, $options: "i" } },
+        ...(instructorIds.length > 0
+          ? [{ instructor: { $in: instructorIds } }]
+          : []),
+      ];
     }
 
     const courses = await Course.find(filter)

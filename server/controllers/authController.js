@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import User from "../models/User.js";
+import sendEmail from "../utils/sendEmail.js";
 
 const generateToken = (user) =>
   jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, {
@@ -38,6 +39,7 @@ export const registerUser = async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        avatar: user.avatar,
       },
     });
   } catch (error) {
@@ -72,6 +74,7 @@ export const loginUser = async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        avatar: user.avatar,
       },
     });
   } catch (error) {
@@ -79,44 +82,81 @@ export const loginUser = async (req, res) => {
   }
 };
 
-
 // ✅ FORGOT PASSWORD
 export const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
 
-    const user = await User.findOne({ email });
-
-    if (!user) {
-      return res.status(404).json({
+    if (!email?.trim()) {
+      return res.status(400).json({
         success: false,
-        message: "User not found",
+        message: "Email is required",
       });
     }
 
-    // Generate reset token
+    const user = await User.findOne({
+      email: email.trim().toLowerCase(),
+    });
+
+    if (!user) {
+      return res.status(200).json({
+        success: true,
+        message:
+          "If an account exists with this email, a reset link has been sent.",
+      });
+    }
+
     const resetToken = user.getResetPasswordToken();
 
     await user.save({ validateBeforeSave: false });
 
-    // Temporary reset URL
-    const resetUrl = `http://localhost:5173/reset-password/${resetToken}`;
+    const clientUrl = process.env.CLIENT_URL || "http://localhost:5173";
+    const resetUrl = `${clientUrl}/reset-password/${resetToken}`;
 
-    res.status(200).json({
-      success: true,
-      message: "Password reset link generated",
-      resetUrl,
-    });
+    const html = `
+      <div style="font-family: Arial, sans-serif; line-height: 1.6;">
+        <h2>Password Reset Request</h2>
+        <p>Hello ${user.name},</p>
+        <p>You requested to reset your SkillSphere password.</p>
+        <p>Click the button below to create a new password:</p>
+        <a href="${resetUrl}" style="display:inline-block;padding:10px 16px;background:#047857;color:white;text-decoration:none;border-radius:6px;">
+          Reset Password
+        </a>
+        <p>This link will expire in 15 minutes.</p>
+        <p>If you did not request this, please ignore this email.</p>
+      </div>
+    `;
+
+    try {
+      await sendEmail({
+        to: user.email,
+        subject: "Reset your SkillSphere password",
+        html,
+      });
+
+      return res.status(200).json({
+        success: true,
+        message:
+          "If an account exists with this email, a reset link has been sent.",
+      });
+    } catch (emailError) {
+      user.resetPasswordToken = undefined;
+      user.resetPasswordExpire = undefined;
+
+      await user.save({ validateBeforeSave: false });
+
+      return res.status(500).json({
+        success: false,
+        message: "Email could not be sent. Please try again.",
+      });
+    }
   } catch (error) {
-    console.log(error);
-
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
-      message: "Failed to generate reset link",
+      message: "Failed to process forgot password request",
     });
   }
 };
-
 
 // ✅ RESET PASSWORD
 export const resetPassword = async (req, res) => {
@@ -148,7 +188,7 @@ export const resetPassword = async (req, res) => {
     // Clear reset fields
     user.resetPasswordToken = undefined;
     user.resetPasswordExpire = undefined;
-
+    user.passwordChangedAt = Date.now();
     await user.save();
 
     res.status(200).json({
@@ -170,4 +210,36 @@ export const getUserProfile = async (req, res) => {
   res.json({
     user: req.user,
   });
+};
+
+export const updateUserProfile = async (req, res) => {
+  try {
+    const allowedFields = ["name", "avatar"];
+    const updates = {};
+
+    allowedFields.forEach((field) => {
+      if (req.body[field] !== undefined) {
+        updates[field] =
+          typeof req.body[field] === "string"
+            ? req.body[field].trim()
+            : req.body[field];
+      }
+    });
+
+    const user = await User.findByIdAndUpdate(req.user._id, updates, {
+      new: true,
+      runValidators: true,
+    }).select("-password");
+
+    return res.status(200).json({
+      success: true,
+      message: "Profile updated successfully",
+      user,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update profile",
+    });
+  }
 };

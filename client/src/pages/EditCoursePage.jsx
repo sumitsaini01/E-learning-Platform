@@ -15,6 +15,8 @@ import {
   updateLesson,
   updateSection,
 } from "../services/courseService";
+import { uploadVideo } from "../services/uploadService";
+import { courseCategories } from "../constants/coursecategories";
 
 const initialFormState = {
   title: "",
@@ -40,9 +42,13 @@ function EditCoursePage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isStatusUpdating, setIsStatusUpdating] = useState(false);
 
-  const [sectionForm, setSectionForm] = useState({ title: "", description: "" });
+  const [sectionForm, setSectionForm] = useState({
+    title: "",
+    description: "",
+  });
   const [lessonForms, setLessonForms] = useState({});
   const [curriculumLoadingId, setCurriculumLoadingId] = useState("");
+  const [videoUploadingId, setVideoUploadingId] = useState("");
 
   const [editingSectionId, setEditingSectionId] = useState("");
   const [sectionEditForms, setSectionEditForms] = useState({});
@@ -72,7 +78,9 @@ function EditCoursePage() {
         });
       } catch (err) {
         if (!shouldUpdate) return;
-        setError(err.response?.data?.message || "Unable to load course details.");
+        setError(
+          err.response?.data?.message || "Unable to load course details.",
+        );
       } finally {
         if (shouldUpdate) setIsLoading(false);
       }
@@ -149,7 +157,9 @@ function EditCoursePage() {
       setCourse(response.course);
       setSuccess(response.message);
     } catch (err) {
-      setError(err.response?.data?.message || "Unable to update course status.");
+      setError(
+        err.response?.data?.message || "Unable to update course status.",
+      );
     } finally {
       setIsStatusUpdating(false);
     }
@@ -202,7 +212,11 @@ function EditCoursePage() {
       setSuccess("");
       setCurriculumLoadingId(sectionId);
 
-      const data = await updateSection(courseId, sectionId, sectionEditForms[sectionId]);
+      const data = await updateSection(
+        courseId,
+        sectionId,
+        sectionEditForms[sectionId],
+      );
       updateSections(data.sections);
 
       setEditingSectionId("");
@@ -215,7 +229,8 @@ function EditCoursePage() {
   };
 
   const handleDeleteSection = async (sectionId) => {
-    if (!window.confirm("Delete this section and all lessons inside it?")) return;
+    if (!window.confirm("Delete this section and all lessons inside it?"))
+      return;
 
     try {
       setError("");
@@ -241,6 +256,70 @@ function EditCoursePage() {
         [field]: value,
       },
     }));
+  };
+
+  const handleLessonVideoUpload = async (sectionId, file) => {
+    if (!file) return;
+
+    try {
+      setError("");
+      setVideoUploadingId(sectionId);
+
+      const data = await uploadVideo(file);
+
+      setLessonForms((current) => ({
+        ...current,
+        [sectionId]: {
+          ...current[sectionId],
+          videoUrl: data.url,
+          duration: data.duration ? Math.ceil(Number(data.duration) / 60) : "",
+        },
+      }));
+    } catch (err) {
+      const message =
+        err.response?.data?.error ||
+        err.response?.data?.message ||
+        err.message ||
+        "Video upload failed.";
+
+      setError(message);
+      alert(message);
+    } finally {
+      setVideoUploadingId("");
+    }
+  };
+
+  const handleLessonEditVideoUpload = async (lessonId, file) => {
+    if (!file) return;
+
+    try {
+      setError("");
+      setVideoUploadingId(lessonId);
+
+      const data = await uploadVideo(file);
+
+      setLessonEditForms((current) => ({
+        ...current,
+        [lessonId]: {
+          ...current[lessonId],
+          videoUrl: data.url,
+          duration: data.duration
+            ? Math.ceil(Number(data.duration) / 60)
+            : current[lessonId]?.duration || "",
+        },
+      }));
+    } catch (err) {
+      const message =
+        err.response?.data?.error ||
+        err.response?.data?.message ||
+        err.message ||
+        "Video upload failed.";
+
+      setError(message);
+      alert(message);
+    } finally {
+      setVideoUploadingId("");
+    }
   };
 
   const handleAddLesson = async (sectionId) => {
@@ -340,7 +419,12 @@ function EditCoursePage() {
       setSuccess("");
       setCurriculumLoadingId(`move-${lessonId}`);
 
-      const data = await moveLesson(courseId, sectionId, lessonId, targetSectionId);
+      const data = await moveLesson(
+        courseId,
+        sectionId,
+        lessonId,
+        targetSectionId,
+      );
       updateSections(data.sections);
 
       setEditingLessonId("");
@@ -394,18 +478,34 @@ function EditCoursePage() {
             <p className="text-sm font-medium uppercase tracking-wide text-emerald-700">
               Instructor
             </p>
-            <h1 className="mt-2 text-3xl font-semibold text-zinc-950">Edit Course</h1>
+            <h1 className="mt-2 text-3xl font-semibold text-zinc-950">
+              Edit Course
+            </h1>
             <p className="mt-3 text-sm leading-6 text-zinc-600">
-              Update course details, manage visibility, and build the course curriculum.
+              Update course details, manage visibility, and build the course
+              curriculum.
             </p>
           </div>
 
-          <Link
-            to="/dashboard/instructor"
-            className="inline-flex justify-center rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-800 transition hover:bg-zinc-100"
-          >
-            Back to Dashboard
-          </Link>
+          <div className="flex flex-wrap gap-3">
+            <Link
+              to="/instructor/quizzes"
+              state={{
+                courseId: course?._id,
+                courseTitle: course?.title,
+              }}
+              className="inline-flex justify-center rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800"
+            >
+              Manage Quizzes
+            </Link>
+
+            <Link
+              to="/dashboard/instructor"
+              className="inline-flex justify-center rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-800 transition hover:bg-zinc-100"
+            >
+              Back to Dashboard
+            </Link>
+          </div>
         </div>
       </div>
 
@@ -447,14 +547,21 @@ function EditCoursePage() {
               />
 
               <div className="grid gap-5 sm:grid-cols-2">
-                <input
+                <select
                   name="category"
                   value={formData.category}
                   onChange={handleChange}
                   className="rounded-md border border-zinc-300 px-3 py-2 text-sm"
-                  placeholder="Category"
                   required
-                />
+                >
+                  <option value="">Select category</option>
+
+                  {courseCategories.map((category) => (
+                    <option key={category} value={category}>
+                      {category}
+                    </option>
+                  ))}
+                </select>
 
                 <input
                   name="price"
@@ -498,7 +605,9 @@ function EditCoursePage() {
           </form>
 
           <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
-            <h2 className="text-xl font-semibold text-zinc-950">Course Curriculum</h2>
+            <h2 className="text-xl font-semibold text-zinc-950">
+              Course Curriculum
+            </h2>
 
             <form
               onSubmit={handleAddSection}
@@ -511,7 +620,10 @@ function EditCoursePage() {
                   type="text"
                   value={sectionForm.title}
                   onChange={(event) =>
-                    setSectionForm((current) => ({ ...current, title: event.target.value }))
+                    setSectionForm((current) => ({
+                      ...current,
+                      title: event.target.value,
+                    }))
                   }
                   placeholder="Section title"
                   className="rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm"
@@ -537,27 +649,38 @@ function EditCoursePage() {
                 disabled={curriculumLoadingId === "section"}
                 className="mt-4 rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white"
               >
-                {curriculumLoadingId === "section" ? "Adding..." : "Add Section"}
+                {curriculumLoadingId === "section"
+                  ? "Adding..."
+                  : "Add Section"}
               </button>
             </form>
 
             <div className="mt-6 space-y-5">
               {course?.sections?.length ? (
                 course.sections.map((section, sectionIndex) => (
-                  <div key={section._id} className="rounded-lg border border-zinc-200 p-4">
+                  <div
+                    key={section._id}
+                    className="rounded-lg border border-zinc-200 p-4"
+                  >
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       {editingSectionId === section._id ? (
                         <div className="flex-1 space-y-3">
                           <input
                             value={sectionEditForms[section._id]?.title || ""}
                             onChange={(event) =>
-                              handleSectionEditChange(section._id, "title", event.target.value)
+                              handleSectionEditChange(
+                                section._id,
+                                "title",
+                                event.target.value,
+                              )
                             }
                             className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
                           />
 
                           <input
-                            value={sectionEditForms[section._id]?.description || ""}
+                            value={
+                              sectionEditForms[section._id]?.description || ""
+                            }
                             onChange={(event) =>
                               handleSectionEditChange(
                                 section._id,
@@ -591,7 +714,9 @@ function EditCoursePage() {
                           <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
                             Section {sectionIndex + 1}
                           </p>
-                          <h3 className="mt-1 font-semibold text-zinc-950">{section.title}</h3>
+                          <h3 className="mt-1 font-semibold text-zinc-950">
+                            {section.title}
+                          </h3>
                           {section.description ? (
                             <p className="mt-1 text-sm text-zinc-600">
                               {section.description}
@@ -629,7 +754,9 @@ function EditCoursePage() {
                             {editingLessonId === lesson._id ? (
                               <div className="space-y-3">
                                 <input
-                                  value={lessonEditForms[lesson._id]?.title || ""}
+                                  value={
+                                    lessonEditForms[lesson._id]?.title || ""
+                                  }
                                   onChange={(event) =>
                                     handleLessonEditChange(
                                       lesson._id,
@@ -642,7 +769,10 @@ function EditCoursePage() {
                                 />
 
                                 <textarea
-                                  value={lessonEditForms[lesson._id]?.description || ""}
+                                  value={
+                                    lessonEditForms[lesson._id]?.description ||
+                                    ""
+                                  }
                                   onChange={(event) =>
                                     handleLessonEditChange(
                                       lesson._id,
@@ -654,23 +784,40 @@ function EditCoursePage() {
                                   placeholder="Lesson description"
                                 />
 
-                                <input
-                                  value={lessonEditForms[lesson._id]?.videoUrl || ""}
-                                  onChange={(event) =>
-                                    handleLessonEditChange(
-                                      lesson._id,
-                                      "videoUrl",
-                                      event.target.value,
-                                    )
-                                  }
-                                  className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
-                                  placeholder="Video URL"
-                                />
+                                <div>
+                                  <input
+                                    type="file"
+                                    accept="video/*"
+                                    onChange={(event) =>
+                                      handleLessonEditVideoUpload(
+                                        lesson._id,
+                                        event.target.files[0],
+                                      )
+                                    }
+                                    className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+                                  />
+
+                                  {videoUploadingId === lesson._id ? (
+                                    <p className="mt-2 text-sm text-emerald-700">
+                                      Uploading video...
+                                    </p>
+                                  ) : null}
+
+                                  {lessonEditForms[lesson._id]?.videoUrl ? (
+                                    <video
+                                      src={lessonEditForms[lesson._id].videoUrl}
+                                      controls
+                                      className="mt-3 w-full rounded-md"
+                                    />
+                                  ) : null}
+                                </div>
 
                                 <input
                                   type="number"
                                   min="0"
-                                  value={lessonEditForms[lesson._id]?.duration || ""}
+                                  value={
+                                    lessonEditForms[lesson._id]?.duration || ""
+                                  }
                                   onChange={(event) =>
                                     handleLessonEditChange(
                                       lesson._id,
@@ -683,7 +830,10 @@ function EditCoursePage() {
                                 />
 
                                 <select
-                                  value={lessonEditForms[lesson._id]?.targetSectionId || section._id}
+                                  value={
+                                    lessonEditForms[lesson._id]
+                                      ?.targetSectionId || section._id
+                                  }
                                   onChange={(event) =>
                                     handleLessonEditChange(
                                       lesson._id,
@@ -694,7 +844,10 @@ function EditCoursePage() {
                                   className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
                                 >
                                   {course.sections.map((targetSection) => (
-                                    <option key={targetSection._id} value={targetSection._id}>
+                                    <option
+                                      key={targetSection._id}
+                                      value={targetSection._id}
+                                    >
                                       Move to: {targetSection.title}
                                     </option>
                                   ))}
@@ -704,7 +857,8 @@ function EditCoursePage() {
                                   <input
                                     type="checkbox"
                                     checked={
-                                      lessonEditForms[lesson._id]?.isPreviewFree || false
+                                      lessonEditForms[lesson._id]
+                                        ?.isPreviewFree || false
                                     }
                                     onChange={(event) =>
                                       handleLessonEditChange(
@@ -720,7 +874,12 @@ function EditCoursePage() {
                                 <div className="flex flex-wrap gap-2">
                                   <button
                                     type="button"
-                                    onClick={() => handleUpdateLesson(section._id, lesson._id)}
+                                    onClick={() =>
+                                      handleUpdateLesson(
+                                        section._id,
+                                        lesson._id,
+                                      )
+                                    }
                                     className="rounded-md bg-emerald-700 px-3 py-2 text-sm text-white"
                                   >
                                     Save Lesson
@@ -728,7 +887,9 @@ function EditCoursePage() {
 
                                   <button
                                     type="button"
-                                    onClick={() => handleMoveLesson(section._id, lesson._id)}
+                                    onClick={() =>
+                                      handleMoveLesson(section._id, lesson._id)
+                                    }
                                     className="rounded-md bg-blue-600 px-3 py-2 text-sm text-white"
                                   >
                                     Move Lesson
@@ -765,7 +926,9 @@ function EditCoursePage() {
                                 <div className="flex gap-2">
                                   <button
                                     type="button"
-                                    onClick={() => startEditLesson(section._id, lesson)}
+                                    onClick={() =>
+                                      startEditLesson(section._id, lesson)
+                                    }
                                     className="rounded-md border border-zinc-300 px-3 py-2 text-sm"
                                   >
                                     Edit
@@ -774,7 +937,10 @@ function EditCoursePage() {
                                   <button
                                     type="button"
                                     onClick={() =>
-                                      handleDeleteLesson(section._id, lesson._id)
+                                      handleDeleteLesson(
+                                        section._id,
+                                        lesson._id,
+                                      )
                                     }
                                     className="rounded-md bg-red-600 px-3 py-2 text-sm text-white"
                                   >
@@ -800,7 +966,11 @@ function EditCoursePage() {
                           type="text"
                           value={lessonForms[section._id]?.title || ""}
                           onChange={(event) =>
-                            handleLessonFormChange(section._id, "title", event.target.value)
+                            handleLessonFormChange(
+                              section._id,
+                              "title",
+                              event.target.value,
+                            )
                           }
                           placeholder="Lesson title"
                           className="rounded-md border border-zinc-300 px-3 py-2 text-sm"
@@ -819,19 +989,33 @@ function EditCoursePage() {
                           className="min-h-24 rounded-md border border-zinc-300 px-3 py-2 text-sm"
                         />
 
-                        <input
-                          type="text"
-                          value={lessonForms[section._id]?.videoUrl || ""}
-                          onChange={(event) =>
-                            handleLessonFormChange(
-                              section._id,
-                              "videoUrl",
-                              event.target.value,
-                            )
-                          }
-                          placeholder="Video URL"
-                          className="rounded-md border border-zinc-300 px-3 py-2 text-sm"
-                        />
+                        <div>
+                          <input
+                            type="file"
+                            accept="video/*"
+                            onChange={(event) =>
+                              handleLessonVideoUpload(
+                                section._id,
+                                event.target.files[0],
+                              )
+                            }
+                            className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+                          />
+
+                          {videoUploadingId === section._id ? (
+                            <p className="mt-2 text-sm text-emerald-700">
+                              Uploading video...
+                            </p>
+                          ) : null}
+
+                          {lessonForms[section._id]?.videoUrl ? (
+                            <video
+                              src={lessonForms[section._id].videoUrl}
+                              controls
+                              className="mt-3 w-full rounded-md"
+                            />
+                          ) : null}
+                        </div>
 
                         <input
                           type="number"
@@ -851,7 +1035,9 @@ function EditCoursePage() {
                         <label className="flex items-center gap-2 text-sm text-zinc-700">
                           <input
                             type="checkbox"
-                            checked={lessonForms[section._id]?.isPreviewFree || false}
+                            checked={
+                              lessonForms[section._id]?.isPreviewFree || false
+                            }
                             onChange={(event) =>
                               handleLessonFormChange(
                                 section._id,
@@ -887,7 +1073,9 @@ function EditCoursePage() {
 
         <aside className="space-y-6">
           <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-zinc-950">Course Status</h2>
+            <h2 className="text-lg font-semibold text-zinc-950">
+              Course Status
+            </h2>
 
             <div className="mt-4">
               <span

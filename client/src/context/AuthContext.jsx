@@ -32,15 +32,29 @@ export function AuthProvider({ children }) {
     setUser(null);
   }, []);
 
+  const updateUser = useCallback(
+    (updatedUser) => {
+      const nextUser = {
+        ...user,
+        ...updatedUser,
+      };
+
+      setAuthSession({ token, user: nextUser });
+      setUser(nextUser);
+    },
+    [token, user],
+  );
+
   const value = useMemo(
     () => ({
       isAuthenticated: Boolean(token && user),
       login,
       logout,
+      updateUser,
       token,
       user,
     }),
-    [login, logout, token, user],
+    [login, logout, updateUser, token, user],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

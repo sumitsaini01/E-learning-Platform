@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
+import { getCourseQuizzes } from "../services/quizService";
 import {
   createCourseReview,
   deleteCourseReview,
@@ -8,13 +9,11 @@ import {
   getCourseById,
   updateCourseReview,
 } from "../services/courseService";
-import {
-  createPaymentOrder,
-  verifyPayment,
-} from "../services/paymentService";
+import { createPaymentOrder, verifyPayment } from "../services/paymentService";
 import {
   getCourseProgress,
   markLessonComplete,
+  updateLessonWatchProgress,
 } from "../services/progressService";
 
 const formatPrice = (price) =>
@@ -86,9 +85,15 @@ function CourseDetailsPage() {
   const location = useLocation();
   const { isAuthenticated, user } = useAuth();
 
+  const videoRef = useRef(null);
+  const watchSaveTimerRef = useRef(null);
+
   const [course, setCourse] = useState(null);
   const [activeLesson, setActiveLesson] = useState(null);
   const [progress, setProgress] = useState(null);
+  const [nextLesson, setNextLesson] = useState(null);
+  const [continueLesson, setContinueLesson] = useState(null);
+  const [quizzes, setQuizzes] = useState([]);
 
   const [error, setError] = useState("");
   const [enrollError, setEnrollError] = useState("");
@@ -122,7 +127,9 @@ function CourseDetailsPage() {
 
   const userReview = useMemo(() => {
     if (!course?.reviews || !studentId) return null;
-    return course.reviews.find((review) => getUserId(review.user) === studentId);
+    return course.reviews.find(
+      (review) => getUserId(review.user) === studentId,
+    );
   }, [course?.reviews, studentId]);
 
   const hasReviewed = Boolean(userReview);
@@ -138,14 +145,80 @@ function CourseDetailsPage() {
   const canReview =
     isAuthenticated && user?.role === "student" && isEnrolled && !hasReviewed;
 
+  const completedLessons = progress?.progress?.completedLessons || [];
+  const lessonProgressList = progress?.progress?.lessonProgress || [];
+  const completed = progress?.completed || completedLessons.length || 0;
+  const totalLessons = progress?.totalLessons || 0;
+  const percentage = progress?.percentage || 0;
+
+  const getLessonById = (lessonId) => {
+    if (!course || !lessonId) return null;
+
+    for (const section of course.sections || []) {
+      const lesson = section.lessons?.find((item) => item._id === lessonId);
+
+      if (lesson) {
+        return {
+          lesson,
+          section,
+        };
+      }
+    }
+
+    return null;
+  };
+
+  const getNextLessonLocal = (lessonId) => {
+    const flatLessons = [];
+
+    (course?.sections || []).forEach((section) => {
+      section.lessons?.forEach((lesson) => {
+        flatLessons.push({
+          lesson,
+          section,
+        });
+      });
+    });
+
+    const currentIndex = flatLessons.findIndex(
+      (item) => item.lesson._id === lessonId,
+    );
+
+    if (currentIndex === -1 || currentIndex === flatLessons.length - 1) {
+      return null;
+    }
+
+    return flatLessons[currentIndex + 1];
+  };
+
+  const openLessonById = (lessonId) => {
+    const found = getLessonById(lessonId);
+
+    if (found) {
+      handleOpenLesson(found.lesson, found.section);
+    }
+  };
+
   const loadProgress = async () => {
     if (!canTrackProgress) return;
 
     try {
       const data = await getCourseProgress(id);
       setProgress(data);
+      setContinueLesson(data.continueLesson || null);
     } catch {
       setProgress(null);
+    }
+  };
+
+  const loadQuizzes = async () => {
+    if (!canViewAllLessons) return;
+
+    try {
+      const data = await getCourseQuizzes(id);
+      setQuizzes(data.quizzes || []);
+    } catch {
+      setQuizzes([]);
     }
   };
 
@@ -173,10 +246,24 @@ function CourseDetailsPage() {
     loadProgress();
   }, [id, canTrackProgress]);
 
-  const completedLessons = progress?.progress?.completedLessons || [];
-  const completed = progress?.completed || completedLessons.length || 0;
-  const totalLessons = progress?.totalLessons || 0;
-  const percentage = progress?.percentage || 0;
+  useEffect(() => {
+    loadQuizzes();
+  }, [id, canViewAllLessons]);
+
+  useEffect(() => {
+    if (!course || !continueLesson?.lessonId || activeLesson) return;
+
+    const found = getLessonById(continueLesson.lessonId);
+
+    if (found && canViewAllLessons) {
+      setActiveLesson({
+        ...found.lesson,
+        sectionTitle: found.section.title,
+      });
+
+      setNextLesson(getNextLessonLocal(found.lesson._id));
+    }
+  }, [course, continueLesson, canViewAllLessons, activeLesson]);
 
   const handleFreeEnroll = async () => {
     try {
@@ -206,6 +293,7 @@ function CourseDetailsPage() {
 
       if (isFreeCourse) {
         await handleFreeEnroll();
+        setIsEnrolling(false);
         return;
       }
 
@@ -213,6 +301,7 @@ function CourseDetailsPage() {
 
       if (!scriptLoaded) {
         setEnrollError("Unable to load Razorpay. Please check your internet.");
+        setIsEnrolling(false);
         return;
       }
 
@@ -221,6 +310,7 @@ function CourseDetailsPage() {
       if (orderData.free) {
         if (orderData.course) setCourse(orderData.course);
         setEnrollMessage(orderData.message || "Successfully enrolled.");
+        setIsEnrolling(false);
         return;
       }
 
@@ -260,16 +350,20 @@ function CourseDetailsPage() {
               verifiedData.message ||
                 "Payment successful. You are enrolled in this course.",
             );
+
+            setIsEnrolling(false);
           } catch (err) {
             setEnrollError(
               err.response?.data?.message ||
                 "Payment completed but verification failed.",
             );
+            setIsEnrolling(false);
           }
         },
         modal: {
           ondismiss: () => {
             setEnrollError("Payment cancelled.");
+            setIsEnrolling(false);
           },
         },
       };
@@ -277,15 +371,12 @@ function CourseDetailsPage() {
       const razorpay = new window.Razorpay(options);
       razorpay.open();
     } catch (err) {
-      setEnrollError(
-        err.response?.data?.message || "Unable to start payment.",
-      );
-    } finally {
+      setEnrollError(err.response?.data?.message || "Unable to start payment.");
       setIsEnrolling(false);
     }
   };
 
-  const handleOpenLesson = (lesson, section) => {
+  const handleOpenLesson = async (lesson, section) => {
     const canOpenLesson = canViewAllLessons || lesson.isPreviewFree;
 
     if (!canOpenLesson) {
@@ -300,6 +391,58 @@ function CourseDetailsPage() {
       ...lesson,
       sectionTitle: section.title,
     });
+
+    setNextLesson(getNextLessonLocal(lesson._id));
+
+    if (canTrackProgress) {
+      try {
+        const data = await updateLessonWatchProgress(id, {
+          lessonId: lesson._id,
+          watchedSeconds: 0,
+          durationSeconds: Number(lesson.duration || 0) * 60,
+        });
+
+        setProgress(data);
+        setContinueLesson(data.continueLesson || null);
+      } catch {
+        // lesson should still open
+      }
+    }
+  };
+
+  const saveWatchProgress = async (videoElement) => {
+    if (!canTrackProgress || !activeLesson?._id || !videoElement) return;
+
+    try {
+      const data = await updateLessonWatchProgress(id, {
+        lessonId: activeLesson._id,
+        watchedSeconds: Math.floor(videoElement.currentTime || 0),
+        durationSeconds: Math.floor(videoElement.duration || 0),
+      });
+
+      setProgress(data);
+      setContinueLesson(data.continueLesson || null);
+      setNextLesson(getNextLessonLocal(activeLesson._id));
+
+      if (data.message === "Lesson auto-marked as complete") {
+        setProgressMessage("Lesson auto-marked as complete.");
+      }
+    } catch {
+      // avoid noisy UI while video is playing
+    }
+  };
+
+  const handleVideoTimeUpdate = (event) => {
+    if (watchSaveTimerRef.current) return;
+
+    watchSaveTimerRef.current = setTimeout(() => {
+      saveWatchProgress(event.target);
+      watchSaveTimerRef.current = null;
+    }, 5000);
+  };
+
+  const handleVideoPauseOrEnded = (event) => {
+    saveWatchProgress(event.target);
   };
 
   const handleMarkComplete = async () => {
@@ -312,6 +455,8 @@ function CourseDetailsPage() {
       const data = await markLessonComplete(id, activeLesson._id);
 
       setProgress(data);
+      setNextLesson(getNextLessonLocal(activeLesson._id));
+      setContinueLesson(data.continueLesson || null);
       setProgressMessage("Lesson marked as complete.");
     } catch (err) {
       setProgressMessage(
@@ -320,6 +465,11 @@ function CourseDetailsPage() {
     } finally {
       setIsCompleting(false);
     }
+  };
+
+  const handleOpenNextLesson = () => {
+    if (!nextLesson) return;
+    handleOpenLesson(nextLesson.lesson, nextLesson.section);
   };
 
   const handleSubmitReview = async (event) => {
@@ -344,9 +494,7 @@ function CourseDetailsPage() {
 
       setReviewMessage(data.message || "Review added successfully.");
     } catch (err) {
-      setReviewError(
-        err.response?.data?.message || "Unable to submit review.",
-      );
+      setReviewError(err.response?.data?.message || "Unable to submit review.");
     } finally {
       setIsReviewing(false);
     }
@@ -380,9 +528,7 @@ function CourseDetailsPage() {
       setEditingReviewId("");
       setReviewMessage(data.message || "Review updated successfully.");
     } catch (err) {
-      setReviewError(
-        err.response?.data?.message || "Unable to update review.",
-      );
+      setReviewError(err.response?.data?.message || "Unable to update review.");
     } finally {
       setIsReviewing(false);
     }
@@ -405,12 +551,23 @@ function CourseDetailsPage() {
       setEditingReviewId("");
       setReviewMessage(data.message || "Review deleted successfully.");
     } catch (err) {
-      setReviewError(
-        err.response?.data?.message || "Unable to delete review.",
-      );
+      setReviewError(err.response?.data?.message || "Unable to delete review.");
     } finally {
       setIsReviewing(false);
     }
+  };
+
+  const getLessonWatchedPercent = (lessonId) => {
+    const item = lessonProgressList.find(
+      (lessonProgress) => lessonProgress.lessonId === lessonId,
+    );
+
+    if (!item?.durationSeconds) return 0;
+
+    return Math.min(
+      Math.round((item.watchedSeconds / item.durationSeconds) * 100),
+      100,
+    );
   };
 
   if (isLoading) {
@@ -448,7 +605,9 @@ function CourseDetailsPage() {
   if (!course) {
     return (
       <section className="mx-auto max-w-2xl rounded-lg border border-zinc-200 bg-white p-6 text-center shadow-sm">
-        <h2 className="text-xl font-semibold text-zinc-950">Course not found</h2>
+        <h2 className="text-xl font-semibold text-zinc-950">
+          Course not found
+        </h2>
 
         <p className="mt-2 text-sm text-zinc-600">
           This course may have been removed or does not exist.
@@ -479,6 +638,10 @@ function CourseDetailsPage() {
     activeLesson?.videoUrl || "",
   );
 
+  const activeLessonWatchedPercent = activeLesson?._id
+    ? getLessonWatchedPercent(activeLesson._id)
+    : 0;
+
   return (
     <section className="mx-auto max-w-6xl space-y-6">
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
@@ -497,7 +660,8 @@ function CourseDetailsPage() {
             </span>
 
             <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
-              ★ {(course.averageRating || 0).toFixed(1)} ({course.numReviews || 0})
+              ★ {(course.averageRating || 0).toFixed(1)} (
+              {course.numReviews || 0})
             </span>
           </div>
 
@@ -508,6 +672,16 @@ function CourseDetailsPage() {
           <p className="mt-5 whitespace-pre-line text-sm leading-7 text-zinc-600">
             {course.description || "No course description available."}
           </p>
+
+          {continueLesson?.lessonId && canTrackProgress ? (
+            <button
+              type="button"
+              onClick={() => openLessonById(continueLesson.lessonId)}
+              className="mt-5 rounded-md bg-zinc-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800"
+            >
+              Continue Watching: {continueLesson.lessonTitle}
+            </button>
+          ) : null}
         </div>
 
         <aside className="h-fit rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
@@ -624,10 +798,14 @@ function CourseDetailsPage() {
                 />
               ) : (
                 <video
+                  ref={videoRef}
                   src={activeLesson.videoUrl}
                   controls
                   controlsList="nodownload"
                   className="aspect-video w-full"
+                  onTimeUpdate={handleVideoTimeUpdate}
+                  onPause={handleVideoPauseOrEnded}
+                  onEnded={handleVideoPauseOrEnded}
                 />
               )}
             </div>
@@ -639,24 +817,50 @@ function CourseDetailsPage() {
 
           {canTrackProgress ? (
             <div className="mt-5">
+              <div className="mb-3">
+                <div className="flex items-center justify-between text-xs text-zinc-500">
+                  <span>Watch progress</span>
+                  <span>{activeLessonWatchedPercent}%</span>
+                </div>
+
+                <div className="mt-1 h-2 overflow-hidden rounded-full bg-zinc-100">
+                  <div
+                    className="h-full rounded-full bg-blue-600"
+                    style={{ width: `${activeLessonWatchedPercent}%` }}
+                  />
+                </div>
+              </div>
+
               {progressMessage ? (
                 <p className="mb-3 rounded-md bg-stone-50 px-3 py-2 text-sm text-zinc-700">
                   {progressMessage}
                 </p>
               ) : null}
 
-              <button
-                type="button"
-                onClick={handleMarkComplete}
-                disabled={isCompleting || isActiveLessonCompleted}
-                className="rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-emerald-400"
-              >
-                {isActiveLessonCompleted
-                  ? "Completed"
-                  : isCompleting
-                    ? "Marking..."
-                    : "Mark as Complete"}
-              </button>
+              <div className="flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={handleMarkComplete}
+                  disabled={isCompleting || isActiveLessonCompleted}
+                  className="rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-emerald-400"
+                >
+                  {isActiveLessonCompleted
+                    ? "Completed"
+                    : isCompleting
+                      ? "Marking..."
+                      : "Mark as Complete"}
+                </button>
+
+                {nextLesson ? (
+                  <button
+                    type="button"
+                    onClick={handleOpenNextLesson}
+                    className="rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-800 transition hover:bg-zinc-100"
+                  >
+                    Next Lesson →
+                  </button>
+                ) : null}
+              </div>
             </div>
           ) : null}
         </div>
@@ -693,6 +897,9 @@ function CourseDetailsPage() {
                         !canViewAllLessons && !lesson.isPreviewFree;
 
                       const isCompleted = completedLessons.includes(lesson._id);
+                      const watchedPercent = getLessonWatchedPercent(
+                        lesson._id,
+                      );
 
                       return (
                         <button
@@ -706,7 +913,7 @@ function CourseDetailsPage() {
                           }`}
                         >
                           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                            <div>
+                            <div className="flex-1">
                               <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
                                 Lesson {lessonIndex + 1}
                               </p>
@@ -717,6 +924,12 @@ function CourseDetailsPage() {
 
                               <div className="mt-2 flex flex-wrap gap-2 text-xs text-zinc-600">
                                 <span>{lesson.duration || 0} min</span>
+
+                                {watchedPercent > 0 && !isCompleted ? (
+                                  <span className="rounded-full bg-blue-100 px-2 py-1 font-medium text-blue-800">
+                                    {watchedPercent}% watched
+                                  </span>
+                                ) : null}
 
                                 {lesson.isPreviewFree ? (
                                   <span className="rounded-full bg-emerald-100 px-2 py-1 font-medium text-emerald-800">
@@ -736,6 +949,17 @@ function CourseDetailsPage() {
                                   </span>
                                 ) : null}
                               </div>
+
+                              {watchedPercent > 0 ? (
+                                <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-zinc-100">
+                                  <div
+                                    className="h-full rounded-full bg-blue-600"
+                                    style={{
+                                      width: `${watchedPercent}%`,
+                                    }}
+                                  />
+                                </div>
+                              ) : null}
                             </div>
 
                             <span className="text-sm font-medium text-emerald-700">
@@ -748,6 +972,78 @@ function CourseDetailsPage() {
                   ) : (
                     <p className="rounded-md bg-stone-50 p-3 text-sm text-zinc-600">
                       No lessons added yet.
+                    </p>
+                  )}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
+        <h2 className="text-xl font-semibold text-zinc-950">Course Quizzes</h2>
+
+        <div className="mt-5 space-y-4">
+          {quizzes.length === 0 ? (
+            <p className="rounded-md bg-stone-50 p-4 text-sm text-zinc-600">
+              No quizzes available for this course yet.
+            </p>
+          ) : (
+            quizzes.map((quiz) => (
+              <div
+                key={quiz._id}
+                className="rounded-lg border border-zinc-200 p-5"
+              >
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <h3 className="font-semibold text-zinc-950">
+                      {quiz.title}
+                    </h3>
+
+                    {quiz.description ? (
+                      <p className="mt-2 text-sm text-zinc-600">
+                        {quiz.description}
+                      </p>
+                    ) : null}
+
+                    <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                      <span className="rounded-full bg-emerald-100 px-2 py-1 font-medium text-emerald-800">
+                        {quiz.questions?.length || 0} questions
+                      </span>
+
+                      <span className="rounded-full bg-amber-100 px-2 py-1 font-medium text-amber-800">
+                        Passing {quiz.passingPercentage}%
+                      </span>
+
+                      {quiz.timeLimitMinutes > 0 ? (
+                        <span className="rounded-full bg-blue-100 px-2 py-1 font-medium text-blue-800">
+                          {quiz.timeLimitMinutes} min
+                        </span>
+                      ) : null}
+
+                      {quiz.maxAttempts > 0 ? (
+                        <span className="rounded-full bg-zinc-100 px-2 py-1 font-medium text-zinc-700">
+                          {quiz.maxAttempts} attempts
+                        </span>
+                      ) : (
+                        <span className="rounded-full bg-zinc-100 px-2 py-1 font-medium text-zinc-700">
+                          Unlimited attempts
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {isAuthenticated && user?.role === "student" && isEnrolled ? (
+                    <Link
+                      to={`/quizzes/${quiz._id}/attempt`}
+                      className="inline-flex justify-center rounded-md bg-zinc-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800"
+                    >
+                      Attempt Quiz
+                    </Link>
+                  ) : (
+                    <p className="rounded-md bg-stone-50 px-3 py-2 text-sm text-zinc-600">
+                      Enroll to attempt
                     </p>
                   )}
                 </div>
@@ -847,7 +1143,10 @@ function CourseDetailsPage() {
               {isReviewing ? "Submitting..." : "Submit Review"}
             </button>
           </form>
-        ) : isAuthenticated && user?.role === "student" && isEnrolled && hasReviewed ? (
+        ) : isAuthenticated &&
+          user?.role === "student" &&
+          isEnrolled &&
+          hasReviewed ? (
           <p className="mt-5 rounded-md bg-stone-50 px-3 py-2 text-sm text-zinc-600">
             You have already reviewed this course. You can edit or delete your
             review below.
@@ -905,7 +1204,9 @@ function CourseDetailsPage() {
                       <div className="mt-4 flex flex-wrap gap-2">
                         <button
                           type="submit"
-                          disabled={isReviewing || !editReviewForm.comment.trim()}
+                          disabled={
+                            isReviewing || !editReviewForm.comment.trim()
+                          }
                           className="rounded-md bg-amber-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-700 disabled:bg-amber-300"
                         >
                           {isReviewing ? "Saving..." : "Save Review"}

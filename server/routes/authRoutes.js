@@ -3,6 +3,7 @@ import {
   registerUser,
   loginUser,
   getUserProfile,
+  updateUserProfile,
   forgotPassword,
   resetPassword,
 } from "../controllers/authController.js";
@@ -15,5 +16,6 @@ router.post("/login", loginUser);
 router.post("/forgot-password", forgotPassword);
 router.put("/reset-password/:token", resetPassword);
 router.get("/profile", protect, getUserProfile);
+router.put("/profile", protect, updateUserProfile);
 
 export default router;

@@ -24,14 +24,15 @@ const userSchema = new mongoose.Schema(
       minlength: 6,
     },
 
+    passwordChangedAt: {
+      type: Date,
+    },
+
     role: {
       type: String,
       enum: ["student", "instructor", "admin"],
       default: "student",
     },
-
-    resetPasswordToken: String,
-    resetPasswordExpire: Date,
 
     avatar: {
       type: String,
@@ -52,17 +53,14 @@ const userSchema = new mongoose.Schema(
 );
 
 userSchema.methods.getResetPasswordToken = function () {
-  // Generate token
-  const resetToken = crypto.randomBytes(20).toString("hex");
+  const resetToken = crypto.randomBytes(32).toString("hex");
 
-  // Hash token and save to DB
   this.resetPasswordToken = crypto
     .createHash("sha256")
     .update(resetToken)
     .digest("hex");
 
-  // Token expiry (10 mins)
-  this.resetPasswordExpire = Date.now() + 10 * 60 * 1000;
+  this.resetPasswordExpire = Date.now() + 15 * 60 * 1000;
 
   return resetToken;
 };

@@ -1,6 +1,11 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { createCourse } from "../services/courseService";
+import {
+  createCourse,
+  generateCourseDescription,
+} from "../services/courseService";
+import { courseCategories } from "../constants/coursecategories";
+import { uploadThumbnail } from "../services/uploadService";
 
 const initialFormState = {
   title: "",
@@ -8,6 +13,7 @@ const initialFormState = {
   category: "",
   price: "",
   thumbnail: "",
+  level: "beginner",
   status: "draft",
 };
 
@@ -16,6 +22,8 @@ function CreateCoursePage() {
   const [createdCourse, setCreatedCourse] = useState(null);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [thumbnailUploading, setThumbnailUploading] = useState(false);
+  const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -26,6 +34,66 @@ function CreateCoursePage() {
     }));
   };
 
+  const handleThumbnailUpload = async (event) => {
+    const file = event.target.files[0];
+
+    if (!file) return;
+
+    try {
+      setThumbnailUploading(true);
+
+      const data = await uploadThumbnail(file);
+
+      setFormData((current) => ({
+        ...current,
+        thumbnail: data.url,
+      }));
+    } catch (err) {
+      setError(err.response?.data?.message || "Thumbnail upload failed");
+    } finally {
+      setThumbnailUploading(false);
+    }
+  };
+
+  const handleGenerateDescription = async () => {
+    if (!formData.title.trim()) {
+      setError("Please enter a course title first.");
+      return;
+    }
+
+    try {
+      setError("");
+      setIsGeneratingDescription(true);
+
+      const data = await generateCourseDescription({
+        title: formData.title,
+        category: formData.category,
+        level: formData.level,
+        targetAudience: "Students and beginners looking to learn this topic",
+      });
+
+      const outcomes = data.learningOutcomes?.length
+        ? `\n\nWhat you will learn:\n${data.learningOutcomes
+            .map((item) => `• ${item}`)
+            .join("\n")}`
+        : "";
+
+      const skills = data.skills?.length
+        ? `\n\nSkills covered:\n${data.skills.map((item) => `• ${item}`).join("\n")}`
+        : "";
+
+      setFormData((current) => ({
+        ...current,
+        description: `${data.description || ""}${outcomes}${skills}`.trim(),
+      }));
+    } catch (err) {
+      setError(
+        err.response?.data?.message || "Unable to generate course description.",
+      );
+    } finally {
+      setIsGeneratingDescription(false);
+    }
+  };
   const handleSubmit = async (event) => {
     event.preventDefault();
 
@@ -110,12 +178,23 @@ function CreateCoursePage() {
           </div>
 
           <div>
-            <label
-              htmlFor="description"
-              className="block text-sm font-medium text-zinc-800"
-            >
-              Description
-            </label>
+            <div className="flex items-center justify-between gap-3">
+              <label
+                htmlFor="description"
+                className="block text-sm font-medium text-zinc-800"
+              >
+                Description
+              </label>
+
+              <button
+                type="button"
+                onClick={handleGenerateDescription}
+                disabled={isGeneratingDescription}
+                className="rounded-md border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isGeneratingDescription ? "Generating..." : "Generate with AI"}
+              </button>
+            </div>
 
             <textarea
               id="description"
@@ -137,16 +216,22 @@ function CreateCoursePage() {
                 Category
               </label>
 
-              <input
+              <select
                 id="category"
                 name="category"
-                type="text"
                 value={formData.category}
                 onChange={handleChange}
                 className="mt-2 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
-                placeholder="Programming"
                 required
-              />
+              >
+                <option value="">Select category</option>
+
+                {courseCategories.map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div>
@@ -174,21 +259,55 @@ function CreateCoursePage() {
 
           <div>
             <label
+              htmlFor="level"
+              className="block text-sm font-medium text-zinc-800"
+            >
+              Course Level
+            </label>
+
+            <select
+              id="level"
+              name="level"
+              value={formData.level}
+              onChange={handleChange}
+              className="mt-2 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
+              required
+            >
+              <option value="beginner">Beginner</option>
+              <option value="intermediate">Intermediate</option>
+              <option value="advanced">Advanced</option>
+            </select>
+          </div>
+
+          <div>
+            <label
               htmlFor="thumbnail"
               className="block text-sm font-medium text-zinc-800"
             >
-              Thumbnail URL
+              Course Thumbnail
             </label>
 
             <input
               id="thumbnail"
-              name="thumbnail"
-              type="text"
-              value={formData.thumbnail}
-              onChange={handleChange}
-              className="mt-2 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
-              placeholder="https://example.com/course-image.jpg"
+              type="file"
+              accept="image/*"
+              onChange={handleThumbnailUpload}
+              className="mt-2 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm"
             />
+
+            {thumbnailUploading ? (
+              <p className="mt-2 text-sm text-emerald-700">
+                Uploading thumbnail...
+              </p>
+            ) : null}
+
+            {formData.thumbnail ? (
+              <img
+                src={formData.thumbnail}
+                alt="Course Thumbnail"
+                className="mt-4 h-44 w-full rounded-lg object-cover"
+              />
+            ) : null}
           </div>
 
           <div>
@@ -205,7 +324,6 @@ function CreateCoursePage() {
                   checked={formData.status === "draft"}
                   onChange={handleChange}
                 />
-
                 Draft
               </label>
 
@@ -217,7 +335,6 @@ function CreateCoursePage() {
                   checked={formData.status === "published"}
                   onChange={handleChange}
                 />
-
                 Publish
               </label>
             </div>
@@ -234,9 +351,7 @@ function CreateCoursePage() {
       </div>
 
       <aside className="h-fit rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-zinc-950">
-          Course setup
-        </h2>
+        <h2 className="text-lg font-semibold text-zinc-950">Course setup</h2>
 
         <div className="mt-4 space-y-3 text-sm text-zinc-600">
           <p className="rounded-md bg-stone-50 p-3">

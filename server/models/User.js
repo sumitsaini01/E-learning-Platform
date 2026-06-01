@@ -39,6 +39,23 @@ const userSchema = new mongoose.Schema(
       default: "",
     },
 
+    learningStreak: {
+      currentStreak: {
+        type: Number,
+        default: 0,
+      },
+
+      longestStreak: {
+        type: Number,
+        default: 0,
+      },
+
+      lastActivityDate: {
+        type: Date,
+        default: null,
+      },
+    },
+
     savedCourses: [
       {
         type: mongoose.Schema.Types.ObjectId,

@@ -47,6 +47,47 @@ export const uploadCourseThumbnail = async (req, res) => {
     });
   }
 };
+export const uploadAvatar = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: "Avatar file is required",
+      });
+    }
+
+    const result = await cloudinary.uploader.upload(req.file.path, {
+      folder: "skillsphere/avatars",
+      resource_type: "image",
+      transformation: [
+        {
+          width: 400,
+          height: 400,
+          crop: "fill",
+          gravity: "face",
+          quality: "auto",
+        },
+      ],
+    });
+
+    deleteLocalFile(req.file.path);
+
+    return res.status(200).json({
+      success: true,
+      message: "Avatar uploaded successfully",
+      url: result.secure_url,
+      publicId: result.public_id,
+    });
+  } catch (error) {
+    deleteLocalFile(req.file?.path);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to upload avatar",
+      error: process.env.NODE_ENV === "production" ? undefined : error.message,
+    });
+  }
+};
 
 export const uploadLessonVideo = async (req, res) => {
   try {

@@ -63,3 +63,9 @@ export const changePassword = async (payload) => {
 
   return response.data;
 };
+
+export const updateProfile = async (payload) => {
+  const response = await api.put("/auth/profile", payload);
+
+  return response.data;
+};

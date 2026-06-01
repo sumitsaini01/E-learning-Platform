@@ -65,6 +65,7 @@ function StudentDashboard() {
         }
       });
 
+      setCourses(enrolledCourses);
       setSavedCourses(savedData.courses || []);
       setProgressMap(nextProgressMap);
       setQuizAttempts(attemptsData.attempts || []);
@@ -282,12 +283,24 @@ function StudentDashboard() {
         </div>
       ) : null}
 
-      <div className="grid gap-4 md:grid-cols-5">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
           <p className="text-sm text-zinc-500">Enrolled Courses</p>
 
           <p className="mt-2 text-3xl font-semibold text-zinc-950">
             {dashboardStats.enrolledCourses}
+          </p>
+        </div>
+
+        <div className="rounded-2xl border border-orange-200 bg-orange-50 p-5 shadow-sm">
+          <p className="text-sm text-orange-700">Learning Streak</p>
+
+          <p className="mt-2 text-3xl font-semibold text-orange-950">
+            🔥 {user?.learningStreak?.currentStreak || 0}
+          </p>
+
+          <p className="mt-1 text-xs text-orange-700">
+            Longest: {user?.learningStreak?.longestStreak || 0} days
           </p>
         </div>
 

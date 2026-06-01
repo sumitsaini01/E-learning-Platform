@@ -3,11 +3,25 @@ import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import User from "../models/User.js";
 import sendEmail from "../utils/sendEmail.js";
+import cloudinary from "../config/cloudinary.js";
 
 const generateToken = (user) =>
   jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, {
     expiresIn: "1d",
   });
+
+const getCloudinaryPublicIdFromUrl = (url) => {
+  if (!url || !url.includes("cloudinary.com")) return "";
+
+  const parts = url.split("/upload/");
+  if (parts.length < 2) return "";
+
+  const pathWithVersion = parts[1];
+  const pathWithoutVersion = pathWithVersion.replace(/^v\d+\//, "");
+  const publicIdWithExtension = pathWithoutVersion.split(".")[0];
+
+  return publicIdWithExtension;
+};
 
 // ✅ REGISTER
 export const registerUser = async (req, res) => {
@@ -40,6 +54,7 @@ export const registerUser = async (req, res) => {
         email: user.email,
         role: user.role,
         avatar: user.avatar,
+        learningStreak: user.learningStreak,
       },
     });
   } catch (error) {
@@ -75,6 +90,7 @@ export const loginUser = async (req, res) => {
         email: user.email,
         role: user.role,
         avatar: user.avatar,
+        learningStreak: user.learningStreak,
       },
     });
   } catch (error) {
@@ -214,32 +230,51 @@ export const getUserProfile = async (req, res) => {
 
 export const updateUserProfile = async (req, res) => {
   try {
-    const allowedFields = ["name", "avatar"];
-    const updates = {};
+    const { name, avatar } = req.body;
 
-    allowedFields.forEach((field) => {
-      if (req.body[field] !== undefined) {
-        updates[field] =
-          typeof req.body[field] === "string"
-            ? req.body[field].trim()
-            : req.body[field];
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    if (name !== undefined) {
+      user.name = name.trim();
+    }
+
+    if (avatar !== undefined && avatar.trim() !== user.avatar) {
+      const oldAvatarPublicId = getCloudinaryPublicIdFromUrl(user.avatar);
+
+      if (oldAvatarPublicId) {
+        await cloudinary.uploader.destroy(oldAvatarPublicId);
       }
-    });
 
-    const user = await User.findByIdAndUpdate(req.user._id, updates, {
-      new: true,
-      runValidators: true,
-    }).select("-password");
+      user.avatar = avatar.trim();
+    }
+
+    await user.save();
 
     return res.status(200).json({
       success: true,
       message: "Profile updated successfully",
-      user,
+      user: {
+        id: user._id,
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        avatar: user.avatar,
+        learningStreak: user.learningStreak,
+      },
     });
   } catch (error) {
     return res.status(500).json({
       success: false,
       message: "Failed to update profile",
+      error: process.env.NODE_ENV === "production" ? undefined : error.message,
     });
   }
 };

@@ -1,6 +1,7 @@
 import Course from "../models/Course.js";
 import Progress from "../models/Progress.js";
 import { createActivity } from "../utils/activityHelper.js";
+import User from "../models/User.js";
 
 const isStudentEnrolled = (course, userId) => {
   return course.students.some(
@@ -98,6 +99,51 @@ const syncCompletedLessons = (progress) => {
     .map((item) => item.lessonId);
 };
 
+const getDateOnly = (date = new Date()) => {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+};
+
+const updateLearningStreak = async (userId) => {
+  const user = await User.findById(userId);
+
+  if (!user) return null;
+
+  const today = getDateOnly(new Date());
+  const lastActivityDate = user.learningStreak?.lastActivityDate
+    ? getDateOnly(new Date(user.learningStreak.lastActivityDate))
+    : null;
+
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+
+  let currentStreak = user.learningStreak?.currentStreak || 0;
+
+  if (!lastActivityDate) {
+    currentStreak = 1;
+  } else if (lastActivityDate.getTime() === today.getTime()) {
+    currentStreak = currentStreak || 1;
+  } else if (lastActivityDate.getTime() === yesterday.getTime()) {
+    currentStreak += 1;
+  } else {
+    currentStreak = 1;
+  }
+
+  const longestStreak = Math.max(
+    user.learningStreak?.longestStreak || 0,
+    currentStreak,
+  );
+
+  user.learningStreak = {
+    currentStreak,
+    longestStreak,
+    lastActivityDate: today,
+  };
+
+  await user.save();
+
+  return user.learningStreak;
+};
+
 export const markLessonComplete = async (req, res) => {
   try {
     const { courseId } = req.params;
@@ -172,6 +218,8 @@ export const markLessonComplete = async (req, res) => {
 
     await progress.save();
 
+    const learningStreak = await updateLearningStreak(req.user._id);
+
     await createActivity({
       user: req.user._id,
       role: "student",
@@ -205,6 +253,7 @@ export const markLessonComplete = async (req, res) => {
       success: true,
       message: "Lesson marked as complete",
       progress,
+      learningStreak,
       nextLesson: getNextLesson(course, lessonId),
       continueLesson: getContinueLesson(course, progress),
       ...summary,
@@ -314,6 +363,10 @@ export const updateLessonWatchProgress = async (req, res) => {
 
     await progress.save();
 
+    const learningStreak = shouldAutoComplete
+      ? await updateLearningStreak(req.user._id)
+      : null;
+
     const summary = calculateProgressSummary(course, progress);
 
     return res.status(200).json({
@@ -322,6 +375,7 @@ export const updateLessonWatchProgress = async (req, res) => {
         ? "Lesson auto-marked as complete"
         : "Watch progress updated",
       progress,
+      learningStreak,
       lessonProgress: getLessonProgressItem(progress, lessonId),
       nextLesson: getNextLesson(course, lessonId),
       continueLesson: getContinueLesson(course, progress),

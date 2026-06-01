@@ -101,7 +101,7 @@ function StarRatingInput({ value, onChange, disabled = false }) {
 function CourseDetailsPage() {
   const { id } = useParams();
   const location = useLocation();
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, user, updateUser } = useAuth();
 
   const videoRef = useRef(null);
   const watchSaveTimerRef = useRef(null);
@@ -571,6 +571,12 @@ function CourseDetailsPage() {
       setContinueLesson(data.continueLesson || null);
       setNextLesson(getNextLessonLocal(activeLesson._id));
 
+      if (data.learningStreak) {
+        updateUser({
+          learningStreak: data.learningStreak,
+        });
+      }
+
       if (data.message === "Lesson auto-marked as complete") {
         setProgressMessage("Lesson auto-marked as complete.");
       }
@@ -604,6 +610,13 @@ function CourseDetailsPage() {
       setProgress(data);
       setNextLesson(getNextLessonLocal(activeLesson._id));
       setContinueLesson(data.continueLesson || null);
+
+      if (data.learningStreak) {
+        updateUser({
+          learningStreak: data.learningStreak,
+        });
+      }
+
       setProgressMessage("Lesson marked as complete.");
     } catch (err) {
       setProgressMessage(

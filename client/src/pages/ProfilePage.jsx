@@ -2,9 +2,8 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { getRoleRedirectPath } from "../utils/getRoleRedirectPath";
-import { uploadThumbnail } from "../services/uploadService";
-import api from "../services/api";
-import { changePassword } from "../services/authService";
+import { uploadAvatar } from "../services/uploadService";
+import { changePassword, updateProfile } from "../services/authService";
 
 function ProfilePage() {
   const { user, updateUser } = useAuth();
@@ -39,7 +38,7 @@ function ProfilePage() {
       setError("");
       setIsUploading(true);
 
-      const data = await uploadThumbnail(file);
+      const data = await uploadAvatar(file);
 
       setAvatar(data.url);
       setSuccess("Avatar uploaded. Click Save Profile to update your account.");
@@ -63,12 +62,12 @@ function ProfilePage() {
       setSuccess("");
       setIsSaving(true);
 
-      const data = await api.put("/auth/profile", {
+      const data = await updateProfile({
         name,
         avatar,
       });
 
-      updateUser(data.data.user);
+      updateUser(data.user);
 
       setSuccess("Profile updated successfully.");
     } catch (err) {

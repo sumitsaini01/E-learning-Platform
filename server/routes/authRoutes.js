@@ -7,6 +7,7 @@ import {
   forgotPassword,
   resetPassword,
   changePassword,
+  getLearningActivity,
 } from "../controllers/authController.js";
 import { protect } from "../middleware/authMiddleware.js";
 
@@ -17,6 +18,7 @@ router.post("/login", loginUser);
 router.post("/forgot-password", forgotPassword);
 router.put("/reset-password/:token", resetPassword);
 router.get("/profile", protect, getUserProfile);
+router.get("/learning-activity", protect, getLearningActivity);
 router.put("/profile", protect, updateUserProfile);
 router.put("/change-password", protect, changePassword);
 

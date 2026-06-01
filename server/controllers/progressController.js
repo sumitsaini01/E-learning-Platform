@@ -109,6 +109,7 @@ const updateLearningStreak = async (userId) => {
   if (!user) return null;
 
   const today = getDateOnly(new Date());
+
   const lastActivityDate = user.learningStreak?.lastActivityDate
     ? getDateOnly(new Date(user.learningStreak.lastActivityDate))
     : null;
@@ -138,6 +139,24 @@ const updateLearningStreak = async (userId) => {
     longestStreak,
     lastActivityDate: today,
   };
+
+  const existingActivity = user.learningActivity.find(
+    (activity) =>
+      getDateOnly(new Date(activity.date)).getTime() === today.getTime(),
+  );
+
+  if (existingActivity) {
+    existingActivity.count += 1;
+  } else {
+    user.learningActivity.push({
+      date: today,
+      count: 1,
+    });
+  }
+
+  user.learningActivity = user.learningActivity
+    .sort((a, b) => new Date(b.date) - new Date(a.date))
+    .slice(0, 1095);
 
   await user.save();
 

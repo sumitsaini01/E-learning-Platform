@@ -1,9 +1,23 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { getRoleRedirectPath } from "../utils/getRoleRedirectPath";
 import { uploadAvatar } from "../services/uploadService";
-import { changePassword, updateProfile } from "../services/authService";
+import {
+  changePassword,
+  getLearningActivity,
+  updateProfile,
+} from "../services/authService";
+
+const getDateKey = (date) => new Date(date).toISOString().split("T")[0];
+
+const getActivityLevelClass = (count) => {
+  if (!count) return "bg-zinc-100";
+  if (count === 1) return "bg-emerald-200";
+  if (count <= 3) return "bg-emerald-400";
+  if (count <= 5) return "bg-emerald-600";
+  return "bg-emerald-800";
+};
 
 function ProfilePage() {
   const { user, updateUser } = useAuth();
@@ -14,13 +28,21 @@ function ProfilePage() {
   const [success, setSuccess] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [learningActivity, setLearningActivity] = useState([]);
+  const [learningStreak, setLearningStreak] = useState(
+    user?.learningStreak || {
+      currentStreak: 0,
+      longestStreak: 0,
+      lastActivityDate: null,
+    },
+  );
+
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: "",
     newPassword: "",
     confirmPassword: "",
   });
-
-  const [isChangingPassword, setIsChangingPassword] = useState(false);
 
   const initials = user?.name
     ?.split(" ")
@@ -29,6 +51,75 @@ function ProfilePage() {
     .slice(0, 2)
     .toUpperCase();
 
+  useEffect(() => {
+    const loadLearningActivity = async () => {
+      try {
+        const data = await getLearningActivity();
+
+        setLearningActivity(data.activity || []);
+        setLearningStreak(
+          data.learningStreak || {
+            currentStreak: 0,
+            longestStreak: 0,
+            lastActivityDate: null,
+          },
+        );
+      } catch {
+        setLearningActivity([]);
+      }
+    };
+
+    if (user?.role === "student") {
+      loadLearningActivity();
+    }
+  }, [user?.role]);
+
+  const heatmapMonths = useMemo(() => {
+    const activityMap = new Map(
+      learningActivity.map((item) => [getDateKey(item.date), item.count]),
+    );
+
+    const year = new Date().getFullYear();
+
+    return Array.from({ length: 12 }).map((_, monthIndex) => {
+      const firstDay = new Date(year, monthIndex, 1);
+      const lastDay = new Date(year, monthIndex + 1, 0);
+      const days = [];
+
+      for (let index = 0; index < firstDay.getDay(); index += 1) {
+        days.push(null);
+      }
+
+      for (let day = 1; day <= lastDay.getDate(); day += 1) {
+        const date = new Date(year, monthIndex, day);
+        const key = getDateKey(date);
+
+        days.push({
+          date,
+          key,
+          count: activityMap.get(key) || 0,
+        });
+      }
+
+      return {
+        month: firstDay.toLocaleString("default", { month: "short" }),
+        days,
+      };
+    });
+  }, [learningActivity]);
+
+  const totalActiveDays = useMemo(() => {
+    return heatmapMonths
+      .flatMap((month) => month.days)
+      .filter((day) => day && day.count > 0).length;
+  }, [heatmapMonths]);
+
+  const totalActivities = useMemo(() => {
+    return heatmapMonths
+      .flatMap((month) => month.days)
+      .reduce((total, day) => total + (day?.count || 0), 0);
+  }, [heatmapMonths]);
+
   const handleAvatarUpload = async (event) => {
     const file = event.target.files[0];
 
@@ -36,6 +127,7 @@ function ProfilePage() {
 
     try {
       setError("");
+      setSuccess("");
       setIsUploading(true);
 
       const data = await uploadAvatar(file);
@@ -68,7 +160,6 @@ function ProfilePage() {
       });
 
       updateUser(data.user);
-
       setSuccess("Profile updated successfully.");
     } catch (err) {
       setError(err.response?.data?.message || "Unable to update profile.");
@@ -120,7 +211,7 @@ function ProfilePage() {
   };
 
   return (
-    <section className="mx-auto w-full max-w-3xl">
+    <section className="mx-auto w-full max-w-5xl">
       <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex items-center gap-4">
@@ -232,6 +323,89 @@ function ProfilePage() {
             </Link>
           </div>
         </form>
+
+        {user?.role === "student" ? (
+          <div className="mt-8 border-t border-zinc-200 pt-8">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <h2 className="text-xl font-semibold text-zinc-950">
+                  Learning Activity
+                </h2>
+
+                <p className="mt-1 text-sm text-zinc-600">
+                  Your study consistency this year.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3 text-center">
+                <div className="rounded-lg bg-orange-50 px-3 py-2">
+                  <p className="text-lg font-bold text-orange-900">
+                    🔥 {learningStreak?.currentStreak || 0}
+                  </p>
+                  <p className="text-xs text-orange-700">Current</p>
+                </div>
+
+                <div className="rounded-lg bg-emerald-50 px-3 py-2">
+                  <p className="text-lg font-bold text-emerald-900">
+                    {learningStreak?.longestStreak || 0}
+                  </p>
+                  <p className="text-xs text-emerald-700">Longest</p>
+                </div>
+
+                <div className="rounded-lg bg-zinc-100 px-3 py-2">
+                  <p className="text-lg font-bold text-zinc-950">
+                    {totalActivities}
+                  </p>
+                  <p className="text-xs text-zinc-600">Activities</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 overflow-x-auto rounded-xl border border-zinc-200 bg-white p-4">
+              <div className="min-w-[900px]">
+                <div className="flex gap-4">
+                  {heatmapMonths.map((month) => (
+                    <div key={month.month}>
+                      <div className="mb-2 text-center text-xs text-zinc-500">
+                        {month.month}
+                      </div>
+
+                      <div className="grid grid-flow-col grid-rows-7 gap-1">
+                        {month.days.map((day, index) =>
+                          day ? (
+                            <div
+                              key={day.key}
+                              title={`${day.key}: ${day.count} learning activities`}
+                              className={`h-3 w-3 rounded-sm ${getActivityLevelClass(
+                                day.count,
+                              )}`}
+                            />
+                          ) : (
+                            <div key={index} className="h-3 w-3" />
+                          ),
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mt-4 flex items-center justify-between text-xs text-zinc-500">
+                <span>{totalActiveDays} active days this year</span>
+
+                <div className="flex items-center gap-1">
+                  <span>Less</span>
+                  <span className="h-3 w-3 rounded-sm bg-zinc-100" />
+                  <span className="h-3 w-3 rounded-sm bg-emerald-200" />
+                  <span className="h-3 w-3 rounded-sm bg-emerald-400" />
+                  <span className="h-3 w-3 rounded-sm bg-emerald-600" />
+                  <span className="h-3 w-3 rounded-sm bg-emerald-800" />
+                  <span>More</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : null}
 
         <div className="mt-8 border-t border-zinc-200 pt-8">
           <h2 className="text-xl font-semibold text-zinc-950">

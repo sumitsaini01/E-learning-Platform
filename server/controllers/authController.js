@@ -279,6 +279,42 @@ export const updateUserProfile = async (req, res) => {
   }
 };
 
+// ✅ LEARNING ACTIVITY
+export const getLearningActivity = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).select(
+      "learningStreak learningActivity",
+    );
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    const activity = (user.learningActivity || [])
+      .map((item) => ({
+        date: item.date,
+        count: item.count,
+      }))
+      .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    return res.status(200).json({
+      success: true,
+      learningStreak: user.learningStreak,
+      activity,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch learning activity",
+      error: process.env.NODE_ENV === "production" ? undefined : error.message,
+    });
+  }
+};
+
+// ✅ CHANGE PASSWORD
 export const changePassword = async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;

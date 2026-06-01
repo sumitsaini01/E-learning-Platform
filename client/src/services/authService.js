@@ -69,3 +69,9 @@ export const updateProfile = async (payload) => {
 
   return response.data;
 };
+
+export const getLearningActivity = async () => {
+  const response = await api.get("/auth/learning-activity");
+
+  return response.data;
+};

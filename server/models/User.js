@@ -56,6 +56,21 @@ const userSchema = new mongoose.Schema(
       },
     },
 
+    learningActivity: [
+      {
+        date: {
+          type: Date,
+          required: true,
+        },
+
+        count: {
+          type: Number,
+          default: 0,
+          min: 0,
+        },
+      },
+    ],
+
     savedCourses: [
       {
         type: mongoose.Schema.Types.ObjectId,

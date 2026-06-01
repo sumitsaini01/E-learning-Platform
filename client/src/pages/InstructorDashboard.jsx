@@ -10,6 +10,13 @@ import {
   unpublishCourse,
 } from "../services/courseService";
 
+const formatCurrency = (amount) =>
+  new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0,
+  }).format(Number(amount || 0));
+
 function InstructorDashboard() {
   const { user } = useAuth();
 
@@ -21,25 +28,22 @@ function InstructorDashboard() {
 
   const [isLoading, setIsLoading] = useState(true);
 
-  const [actionLoadingId, setActionLoadingId] =
-    useState("");
+  const [actionLoadingId, setActionLoadingId] = useState("");
 
   const loadDashboard = async () => {
     try {
       setError("");
 
-      const [coursesData, analyticsData] =
-        await Promise.all([
-          getInstructorCourses(),
-          getInstructorAnalytics(),
-        ]);
+      const [coursesData, analyticsData] = await Promise.all([
+        getInstructorCourses(),
+        getInstructorAnalytics(),
+      ]);
 
       setCourses(coursesData.courses || []);
       setAnalytics(analyticsData);
     } catch (err) {
       setError(
-        err.response?.data?.message ||
-          "Unable to load instructor dashboard.",
+        err.response?.data?.message || "Unable to load instructor dashboard.",
       );
     } finally {
       setIsLoading(false);
@@ -51,18 +55,12 @@ function InstructorDashboard() {
   }, []);
 
   const publishedCourses = useMemo(
-    () =>
-      courses.filter(
-        (course) => course.status === "published",
-      ),
+    () => courses.filter((course) => course.status === "published"),
     [courses],
   );
 
   const draftCourses = useMemo(
-    () =>
-      courses.filter(
-        (course) => course.status === "draft",
-      ),
+    () => courses.filter((course) => course.status === "draft"),
     [courses],
   );
 
@@ -85,14 +83,10 @@ function InstructorDashboard() {
         ),
       );
 
-      setSuccessMessage(
-        data.message || "Course published successfully.",
-      );
+      setSuccessMessage(data.message || "Course published successfully.");
+      await loadDashboard();
     } catch (err) {
-      setError(
-        err.response?.data?.message ||
-          "Unable to publish course.",
-      );
+      setError(err.response?.data?.message || "Unable to publish course.");
     } finally {
       setActionLoadingId("");
     }
@@ -117,13 +111,11 @@ function InstructorDashboard() {
         ),
       );
 
-      setSuccessMessage(
-        data.message || "Course moved to draft.",
-      );
+      setSuccessMessage(data.message || "Course moved to draft.");
+      await loadDashboard();
     } catch (err) {
       setError(
-        err.response?.data?.message ||
-          "Unable to move course to draft.",
+        err.response?.data?.message || "Unable to move course to draft.",
       );
     } finally {
       setActionLoadingId("");
@@ -147,40 +139,27 @@ function InstructorDashboard() {
       const data = await deleteCourse(courseId);
 
       setCourses((currentCourses) =>
-        currentCourses.filter(
-          (course) => course.id !== courseId,
-        ),
+        currentCourses.filter((course) => course.id !== courseId),
       );
 
-      setSuccessMessage(
-        data.message || "Course deleted successfully.",
-      );
+      setSuccessMessage(data.message || "Course deleted successfully.");
 
       loadDashboard();
     } catch (err) {
-      setError(
-        err.response?.data?.message ||
-          "Unable to delete course.",
-      );
+      setError(err.response?.data?.message || "Unable to delete course.");
     } finally {
       setActionLoadingId("");
     }
   };
 
   const renderCourseCard = (course) => {
-    const isActionLoading =
-      actionLoadingId === course.id;
+    const isActionLoading = actionLoadingId === course.id;
 
     return (
-      <div
-        key={course.id}
-        className="rounded-lg border border-zinc-200 p-4"
-      >
+      <div key={course.id} className="rounded-lg border border-zinc-200 p-4">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h3 className="font-semibold text-zinc-950">
-              {course.title}
-            </h3>
+            <h3 className="font-semibold text-zinc-950">{course.title}</h3>
 
             <div className="mt-2 flex flex-wrap gap-2 text-sm text-zinc-600">
               <span>₹{course.price}</span>
@@ -211,9 +190,7 @@ function InstructorDashboard() {
 
           <span>{course.numReviews} reviews</span>
 
-          <span>
-            {(course.averageRating || 0).toFixed(1)} rating
-          </span>
+          <span>{(course.averageRating || 0).toFixed(1)} rating</span>
         </div>
 
         <div className="mt-5 flex flex-wrap gap-3">
@@ -228,41 +205,29 @@ function InstructorDashboard() {
             <button
               type="button"
               disabled={isActionLoading}
-              onClick={() =>
-                handlePublish(course.id)
-              }
+              onClick={() => handlePublish(course.id)}
               className="rounded-md bg-emerald-700 px-3 py-2 text-sm font-medium text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-emerald-400"
             >
-              {isActionLoading
-                ? "Publishing..."
-                : "Publish"}
+              {isActionLoading ? "Publishing..." : "Publish"}
             </button>
           ) : (
             <button
               type="button"
               disabled={isActionLoading}
-              onClick={() =>
-                handleUnpublish(course.id)
-              }
+              onClick={() => handleUnpublish(course.id)}
               className="rounded-md bg-amber-500 px-3 py-2 text-sm font-medium text-white transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:bg-amber-300"
             >
-              {isActionLoading
-                ? "Updating..."
-                : "Move to Draft"}
+              {isActionLoading ? "Updating..." : "Move to Draft"}
             </button>
           )}
 
           <button
             type="button"
             disabled={isActionLoading}
-            onClick={() =>
-              handleDelete(course.id)
-            }
+            onClick={() => handleDelete(course.id)}
             className="rounded-md bg-red-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-300"
           >
-            {isActionLoading
-              ? "Deleting..."
-              : "Delete"}
+            {isActionLoading ? "Deleting..." : "Delete"}
           </button>
         </div>
       </div>
@@ -321,43 +286,221 @@ function InstructorDashboard() {
 
       <div className="grid gap-4 md:grid-cols-4">
         <div className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
-          <p className="text-sm text-zinc-500">
-            Published Courses
-          </p>
-
+          <p className="text-sm text-zinc-500">Total Courses</p>
           <p className="mt-2 text-2xl font-semibold text-zinc-950">
-            {publishedCourses.length}
+            {analytics?.summary?.totalCourses || 0}
+          </p>
+          <p className="mt-1 text-xs text-zinc-500">
+            {analytics?.summary?.publishedCourses || 0} published •{" "}
+            {analytics?.summary?.draftCourses || 0} draft
           </p>
         </div>
 
         <div className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
-          <p className="text-sm text-zinc-500">
-            Draft Courses
-          </p>
-
+          <p className="text-sm text-zinc-500">Students</p>
           <p className="mt-2 text-2xl font-semibold text-zinc-950">
-            {draftCourses.length}
+            {analytics?.summary?.totalStudents || 0}
           </p>
         </div>
 
         <div className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
-          <p className="text-sm text-zinc-500">
-            Students
-          </p>
-
+          <p className="text-sm text-zinc-500">Revenue</p>
           <p className="mt-2 text-2xl font-semibold text-zinc-950">
-            {analytics?.totalStudents || 0}
+            {formatCurrency(analytics?.summary?.totalRevenue)}
           </p>
         </div>
 
         <div className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
-          <p className="text-sm text-zinc-500">
-            Revenue
-          </p>
-
+          <p className="text-sm text-zinc-500">Average Rating</p>
           <p className="mt-2 text-2xl font-semibold text-zinc-950">
-            ₹{analytics?.totalRevenue || 0}
+            {(analytics?.summary?.averageRating || 0).toFixed(1)}
           </p>
+          <p className="mt-1 text-xs text-zinc-500">
+            {analytics?.summary?.totalReviews || 0} reviews
+          </p>
+        </div>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
+          <h2 className="text-lg font-semibold text-zinc-950">
+            Top Performing Course
+          </h2>
+
+          {analytics?.topCourse ? (
+            <div className="mt-5 rounded-xl border border-emerald-100 bg-emerald-50/40 p-5">
+              <h3 className="font-semibold text-zinc-950">
+                {analytics.topCourse.title}
+              </h3>
+
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <p className="text-sm text-zinc-600">
+                  Students:{" "}
+                  <span className="font-semibold text-zinc-950">
+                    {analytics.topCourse.students}
+                  </span>
+                </p>
+
+                <p className="text-sm text-zinc-600">
+                  Revenue:{" "}
+                  <span className="font-semibold text-zinc-950">
+                    {formatCurrency(analytics.topCourse.revenue)}
+                  </span>
+                </p>
+
+                <p className="text-sm text-zinc-600">
+                  Rating:{" "}
+                  <span className="font-semibold text-zinc-950">
+                    {(analytics.topCourse.averageRating || 0).toFixed(1)}
+                  </span>
+                </p>
+
+                <p className="text-sm text-zinc-600">
+                  Reviews:{" "}
+                  <span className="font-semibold text-zinc-950">
+                    {analytics.topCourse.numReviews}
+                  </span>
+                </p>
+              </div>
+            </div>
+          ) : (
+            <p className="mt-5 text-sm text-zinc-600">
+              No course performance data yet.
+            </p>
+          )}
+        </div>
+
+        <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
+          <h2 className="text-lg font-semibold text-zinc-950">
+            Quiz Analytics
+          </h2>
+
+          <div className="mt-5 grid gap-4 sm:grid-cols-2">
+            <div className="rounded-xl bg-stone-50 p-4">
+              <p className="text-sm text-zinc-500">Total Attempts</p>
+              <p className="mt-2 text-2xl font-semibold text-zinc-950">
+                {analytics?.quizAnalytics?.totalAttempts || 0}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-stone-50 p-4">
+              <p className="text-sm text-zinc-500">Average Score</p>
+              <p className="mt-2 text-2xl font-semibold text-zinc-950">
+                {analytics?.quizAnalytics?.averageScore || 0}%
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-emerald-50 p-4">
+              <p className="text-sm text-emerald-700">Passed</p>
+              <p className="mt-2 text-2xl font-semibold text-emerald-900">
+                {analytics?.quizAnalytics?.passedAttempts || 0}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-red-50 p-4">
+              <p className="text-sm text-red-700">Failed</p>
+              <p className="mt-2 text-2xl font-semibold text-red-900">
+                {analytics?.quizAnalytics?.failedAttempts || 0}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
+        <h2 className="text-lg font-semibold text-zinc-950">
+          Course Performance
+        </h2>
+
+        <div className="mt-5 overflow-x-auto">
+          <table className="w-full min-w-[760px] text-left text-sm">
+            <thead>
+              <tr className="border-b border-zinc-200 text-zinc-500">
+                <th className="py-3 pr-4 font-medium">Course</th>
+                <th className="py-3 pr-4 font-medium">Students</th>
+                <th className="py-3 pr-4 font-medium">Revenue</th>
+                <th className="py-3 pr-4 font-medium">Rating</th>
+                <th className="py-3 pr-4 font-medium">Quiz Attempts</th>
+                <th className="py-3 pr-4 font-medium">Pass Rate</th>
+                <th className="py-3 pr-4 font-medium">Avg Score</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {(analytics?.coursePerformance || []).length === 0 ? (
+                <tr>
+                  <td colSpan="7" className="py-5 text-center text-zinc-500">
+                    No course performance data yet.
+                  </td>
+                </tr>
+              ) : (
+                analytics.coursePerformance.map((course) => (
+                  <tr key={course.id} className="border-b border-zinc-100">
+                    <td className="py-3 pr-4 font-medium text-zinc-950">
+                      {course.title}
+                    </td>
+                    <td className="py-3 pr-4 text-zinc-700">
+                      {course.students}
+                    </td>
+                    <td className="py-3 pr-4 text-zinc-700">
+                      {formatCurrency(course.revenue)}
+                    </td>
+                    <td className="py-3 pr-4 text-zinc-700">
+                      {(course.averageRating || 0).toFixed(1)}
+                    </td>
+                    <td className="py-3 pr-4 text-zinc-700">
+                      {course.quizAttempts}
+                    </td>
+                    <td className="py-3 pr-4 text-zinc-700">
+                      {course.quizPassRate}%
+                    </td>
+                    <td className="py-3 pr-4 text-zinc-700">
+                      {course.averageQuizScore}%
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
+        <h2 className="text-lg font-semibold text-zinc-950">
+          Recent Quiz Attempts
+        </h2>
+
+        <div className="mt-5 space-y-3">
+          {(analytics?.recentQuizAttempts || []).length === 0 ? (
+            <p className="text-sm text-zinc-600">No quiz attempts yet.</p>
+          ) : (
+            analytics.recentQuizAttempts.map((attempt) => (
+              <div
+                key={attempt.id}
+                className="flex flex-col gap-3 rounded-xl border border-zinc-200 p-4 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div>
+                  <p className="font-semibold text-zinc-950">
+                    {attempt.quizTitle}
+                  </p>
+                  <p className="mt-1 text-sm text-zinc-600">
+                    {attempt.courseTitle} • {attempt.percentage}% •{" "}
+                    {attempt.passed ? "Passed" : "Failed"}
+                  </p>
+                </div>
+
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                    attempt.passed
+                      ? "bg-emerald-100 text-emerald-800"
+                      : "bg-red-100 text-red-700"
+                  }`}
+                >
+                  {attempt.passed ? "Passed" : "Failed"}
+                </span>
+              </div>
+            ))
+          )}
         </div>
       </div>
 
@@ -369,9 +512,7 @@ function InstructorDashboard() {
 
           <div className="mt-5 space-y-4">
             {publishedCourses.length === 0 ? (
-              <p className="text-sm text-zinc-600">
-                No published courses yet.
-              </p>
+              <p className="text-sm text-zinc-600">No published courses yet.</p>
             ) : (
               publishedCourses.map(renderCourseCard)
             )}
@@ -379,9 +520,7 @@ function InstructorDashboard() {
         </div>
 
         <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-zinc-950">
-            Draft Courses
-          </h2>
+          <h2 className="text-lg font-semibold text-zinc-950">Draft Courses</h2>
 
           <div className="mt-5 space-y-4">
             {draftCourses.length === 0 ? (

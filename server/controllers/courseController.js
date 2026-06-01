@@ -1,7 +1,11 @@
 import mongoose from "mongoose";
 import Course from "../models/Course.js";
 import User from "../models/User.js";
-import { generateCourseDescriptionWithAI } from "../services/aiQuizService.js";
+import QuizAttempt from "../models/QuizAttempt.js";
+import {
+  generateCourseDescriptionWithAI,
+  generateStudyNotesWithAI,
+} from "../services/aiQuizService.js";
 
 const escapeRegex = (value) => {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -99,6 +103,58 @@ export const generateCourseDescription = async (req, res) => {
   } catch (error) {
     console.error("AI course description error:", error.message);
     return sendServerError(res, "Failed to generate course description", error);
+  }
+};
+
+export const generateStudyNotes = async (req, res) => {
+  try {
+    const { courseId } = req.params;
+
+    const course = await Course.findById(courseId);
+
+    if (!course) {
+      return res.status(404).json({
+        success: false,
+        message: "Course not found",
+      });
+    }
+
+    const isInstructor =
+      course.instructor.toString() === req.user._id.toString();
+
+    const isAdmin = req.user.role === "admin";
+
+    const isStudent =
+      req.user.role === "student" &&
+      course.students.some(
+        (studentId) => studentId.toString() === req.user._id.toString(),
+      );
+
+    if (!isInstructor && !isAdmin && !isStudent) {
+      return res.status(403).json({
+        success: false,
+        message: "Not authorized to generate study notes",
+      });
+    }
+
+    const notes = await generateStudyNotesWithAI({
+      courseTitle: course.title,
+      courseDescription: course.description,
+      category: course.category,
+      level: course.level,
+      sections: course.sections || [],
+    });
+
+    return res.status(200).json({
+      success: true,
+      notes,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to generate study notes",
+      error: process.env.NODE_ENV === "production" ? undefined : error.message,
+    });
   }
 };
 
@@ -294,49 +350,264 @@ export const getStudentEnrolledCourses = async (req, res) => {
   }
 };
 
-export const getInstructorAnalytics = async (req, res) => {
+export const saveCourse = async (req, res) => {
   try {
-    const courses = await Course.find({ instructor: req.user._id });
+    const { id } = req.params;
 
-    let totalStudents = 0;
-    let totalRevenue = 0;
-    let topCourse = null;
-    let maxStudents = 0;
-
-    const recentEnrollments = [];
-
-    courses.forEach((course) => {
-      const studentCount = course.students.length;
-
-      totalStudents += studentCount;
-      totalRevenue += studentCount * course.price;
-
-      if (studentCount > maxStudents) {
-        maxStudents = studentCount;
-        topCourse = course;
-      }
-
-      course.students.slice(-5).forEach((studentId) => {
-        recentEnrollments.push({
-          courseTitle: course.title,
-          studentId,
-        });
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid course id",
       });
+    }
+
+    const course = await Course.findOne({
+      _id: id,
+      status: "published",
+    });
+
+    if (!course) {
+      return res.status(404).json({
+        success: false,
+        message: "Course not found",
+      });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      {
+        $addToSet: {
+          savedCourses: course._id,
+        },
+      },
+      {
+        new: true,
+      },
+    ).populate({
+      path: "savedCourses",
+      populate: {
+        path: "instructor",
+        select: "name email",
+      },
     });
 
     return res.status(200).json({
       success: true,
-      totalCourses: courses.length,
-      totalStudents,
-      totalRevenue,
-      topCourse: topCourse
-        ? {
-            title: topCourse.title,
-            students: topCourse.students.length,
-            revenue: topCourse.students.length * topCourse.price,
-          }
-        : null,
-      recentEnrollments: recentEnrollments.slice(-5),
+      message: "Course saved successfully",
+      savedCourses: user.savedCourses,
+    });
+  } catch (error) {
+    return sendServerError(res, "Failed to save course", error);
+  }
+};
+
+export const removeSavedCourse = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid course id",
+      });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      {
+        $pull: {
+          savedCourses: id,
+        },
+      },
+      {
+        new: true,
+      },
+    ).populate({
+      path: "savedCourses",
+      populate: {
+        path: "instructor",
+        select: "name email",
+      },
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Course removed from saved list",
+      savedCourses: user.savedCourses,
+    });
+  } catch (error) {
+    return sendServerError(res, "Failed to remove saved course", error);
+  }
+};
+
+export const getSavedCourses = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).populate({
+      path: "savedCourses",
+      match: {
+        status: "published",
+      },
+      populate: {
+        path: "instructor",
+        select: "name email",
+      },
+    });
+
+    return res.status(200).json({
+      success: true,
+      count: user.savedCourses.length,
+      courses: user.savedCourses,
+    });
+  } catch (error) {
+    return sendServerError(res, "Failed to fetch saved courses", error);
+  }
+};
+export const getInstructorAnalytics = async (req, res) => {
+  try {
+    const courses = await Course.find({
+      instructor: req.user._id,
+    }).sort({ createdAt: -1 });
+
+    const courseIds = courses.map((course) => course._id);
+
+    const quizAttempts = await QuizAttempt.find({
+      course: { $in: courseIds },
+      status: "submitted",
+    })
+      .populate("quiz", "title")
+      .populate("course", "title")
+      .sort({ submittedAt: -1 });
+
+    const totalCourses = courses.length;
+    const publishedCourses = courses.filter(
+      (course) => course.status === "published",
+    ).length;
+    const draftCourses = courses.filter(
+      (course) => course.status === "draft",
+    ).length;
+
+    const totalStudents = courses.reduce(
+      (total, course) => total + course.students.length,
+      0,
+    );
+
+    const totalRevenue = courses.reduce(
+      (total, course) =>
+        total + course.students.length * Number(course.price || 0),
+      0,
+    );
+
+    const totalReviews = courses.reduce(
+      (total, course) => total + Number(course.numReviews || 0),
+      0,
+    );
+
+    const averageRating =
+      totalReviews === 0
+        ? 0
+        : Number(
+            (
+              courses.reduce(
+                (total, course) =>
+                  total +
+                  Number(course.averageRating || 0) *
+                    Number(course.numReviews || 0),
+                0,
+              ) / totalReviews
+            ).toFixed(1),
+          );
+
+    const topCourse =
+      courses
+        .map((course) => ({
+          id: course._id,
+          title: course.title,
+          students: course.students.length,
+          revenue: course.students.length * Number(course.price || 0),
+          averageRating: course.averageRating || 0,
+          numReviews: course.numReviews || 0,
+        }))
+        .sort((a, b) => b.students - a.students)[0] || null;
+
+    const coursePerformance = courses.map((course) => {
+      const attemptsForCourse = quizAttempts.filter(
+        (attempt) => attempt.course?._id?.toString() === course._id.toString(),
+      );
+
+      const passedAttempts = attemptsForCourse.filter(
+        (attempt) => attempt.passed,
+      ).length;
+
+      const averageQuizScore =
+        attemptsForCourse.length === 0
+          ? 0
+          : Math.round(
+              attemptsForCourse.reduce(
+                (total, attempt) => total + Number(attempt.percentage || 0),
+                0,
+              ) / attemptsForCourse.length,
+            );
+
+      return {
+        id: course._id,
+        title: course.title,
+        status: course.status,
+        category: course.category,
+        level: course.level,
+        students: course.students.length,
+        revenue: course.students.length * Number(course.price || 0),
+        averageRating: course.averageRating || 0,
+        numReviews: course.numReviews || 0,
+        quizAttempts: attemptsForCourse.length,
+        quizPassRate:
+          attemptsForCourse.length === 0
+            ? 0
+            : Math.round((passedAttempts / attemptsForCourse.length) * 100),
+        averageQuizScore,
+      };
+    });
+
+    const quizAnalytics = {
+      totalAttempts: quizAttempts.length,
+      passedAttempts: quizAttempts.filter((attempt) => attempt.passed).length,
+      failedAttempts: quizAttempts.filter((attempt) => !attempt.passed).length,
+      averageScore:
+        quizAttempts.length === 0
+          ? 0
+          : Math.round(
+              quizAttempts.reduce(
+                (total, attempt) => total + Number(attempt.percentage || 0),
+                0,
+              ) / quizAttempts.length,
+            ),
+    };
+
+    const recentQuizAttempts = quizAttempts.slice(0, 5).map((attempt) => ({
+      id: attempt._id,
+      quizTitle: attempt.quiz?.title || "Quiz",
+      courseTitle: attempt.course?.title || "Course",
+      score: attempt.score,
+      totalPoints: attempt.totalPoints,
+      percentage: attempt.percentage,
+      passed: attempt.passed,
+      submittedAt: attempt.submittedAt,
+    }));
+
+    return res.status(200).json({
+      success: true,
+      summary: {
+        totalCourses,
+        publishedCourses,
+        draftCourses,
+        totalStudents,
+        totalRevenue,
+        totalReviews,
+        averageRating,
+      },
+      topCourse,
+      coursePerformance,
+      quizAnalytics,
+      recentQuizAttempts,
     });
   } catch (error) {
     return sendServerError(res, "Failed to fetch analytics", error);

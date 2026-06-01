@@ -4,6 +4,7 @@ import { useAuth } from "../hooks/useAuth";
 import { getRoleRedirectPath } from "../utils/getRoleRedirectPath";
 import { uploadThumbnail } from "../services/uploadService";
 import api from "../services/api";
+import { changePassword } from "../services/authService";
 
 function ProfilePage() {
   const { user, updateUser } = useAuth();
@@ -14,6 +15,13 @@ function ProfilePage() {
   const [success, setSuccess] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
 
   const initials = user?.name
     ?.split(" ")
@@ -67,6 +75,48 @@ function ProfilePage() {
       setError(err.response?.data?.message || "Unable to update profile.");
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handlePasswordChange = async (event) => {
+    event.preventDefault();
+
+    if (!passwordForm.currentPassword || !passwordForm.newPassword) {
+      setError("Current password and new password are required.");
+      return;
+    }
+
+    if (passwordForm.newPassword.length < 6) {
+      setError("New password must be at least 6 characters.");
+      return;
+    }
+
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setError("New password and confirm password do not match.");
+      return;
+    }
+
+    try {
+      setError("");
+      setSuccess("");
+      setIsChangingPassword(true);
+
+      await changePassword({
+        currentPassword: passwordForm.currentPassword,
+        newPassword: passwordForm.newPassword,
+      });
+
+      setPasswordForm({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
+
+      setSuccess("Password changed successfully.");
+    } catch (err) {
+      setError(err.response?.data?.message || "Unable to change password.");
+    } finally {
+      setIsChangingPassword(false);
     }
   };
 
@@ -183,6 +233,82 @@ function ProfilePage() {
             </Link>
           </div>
         </form>
+
+        <div className="mt-8 border-t border-zinc-200 pt-8">
+          <h2 className="text-xl font-semibold text-zinc-950">
+            Change Password
+          </h2>
+
+          <p className="mt-1 text-sm text-zinc-600">
+            Update your password while you are logged in.
+          </p>
+
+          <form onSubmit={handlePasswordChange} className="mt-5 space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-zinc-800">
+                Current Password
+              </label>
+
+              <input
+                type="password"
+                value={passwordForm.currentPassword}
+                onChange={(event) =>
+                  setPasswordForm((current) => ({
+                    ...current,
+                    currentPassword: event.target.value,
+                  }))
+                }
+                className="mt-2 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
+              />
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="block text-sm font-medium text-zinc-800">
+                  New Password
+                </label>
+
+                <input
+                  type="password"
+                  value={passwordForm.newPassword}
+                  onChange={(event) =>
+                    setPasswordForm((current) => ({
+                      ...current,
+                      newPassword: event.target.value,
+                    }))
+                  }
+                  className="mt-2 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-zinc-800">
+                  Confirm New Password
+                </label>
+
+                <input
+                  type="password"
+                  value={passwordForm.confirmPassword}
+                  onChange={(event) =>
+                    setPasswordForm((current) => ({
+                      ...current,
+                      confirmPassword: event.target.value,
+                    }))
+                  }
+                  className="mt-2 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={isChangingPassword}
+              className="rounded-md bg-zinc-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-500"
+            >
+              {isChangingPassword ? "Changing..." : "Change Password"}
+            </button>
+          </form>
+        </div>
       </div>
     </section>
   );

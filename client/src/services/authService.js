@@ -45,12 +45,10 @@ export const getProfile = async () => {
   return data;
 };
 
-
 export const forgotPassword = async (email) => {
   const { data } = await api.post("/auth/forgot-password", { email });
   return data;
 };
-
 
 export const resetPassword = async (token, password) => {
   const { data } = await api.put(`/auth/reset-password/${token}`, {
@@ -58,4 +56,10 @@ export const resetPassword = async (token, password) => {
   });
 
   return data;
+};
+
+export const changePassword = async (payload) => {
+  const response = await api.put("/auth/change-password", payload);
+
+  return response.data;
 };

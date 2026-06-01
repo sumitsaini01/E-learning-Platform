@@ -7,14 +7,32 @@ import {
   deleteCourseReview,
   enrollInCourse,
   getCourseById,
+  generateStudyNotes,
+  getSavedCourses,
+  removeSavedCourse,
+  saveCourse,
   updateCourseReview,
 } from "../services/courseService";
+
 import { createPaymentOrder, verifyPayment } from "../services/paymentService";
 import {
   getCourseProgress,
   markLessonComplete,
   updateLessonWatchProgress,
 } from "../services/progressService";
+
+import {
+  createDiscussion,
+  getCourseDiscussions,
+  replyToDiscussion,
+  toggleDiscussionResolved,
+} from "../services/discussionService";
+
+import {
+  deleteLessonNote,
+  getLessonNote,
+  saveLessonNote,
+} from "../services/noteService";
 
 const formatPrice = (price) =>
   Number(price) === 0
@@ -94,6 +112,7 @@ function CourseDetailsPage() {
   const [nextLesson, setNextLesson] = useState(null);
   const [continueLesson, setContinueLesson] = useState(null);
   const [quizzes, setQuizzes] = useState([]);
+  const [discussions, setDiscussions] = useState([]);
 
   const [error, setError] = useState("");
   const [enrollError, setEnrollError] = useState("");
@@ -101,17 +120,40 @@ function CourseDetailsPage() {
   const [progressMessage, setProgressMessage] = useState("");
   const [reviewError, setReviewError] = useState("");
   const [reviewMessage, setReviewMessage] = useState("");
+  const [discussionError, setDiscussionError] = useState("");
+  const [discussionMessage, setDiscussionMessage] = useState("");
+  const [studyNotes, setStudyNotes] = useState(null);
+  const [studyNotesError, setStudyNotesError] = useState("");
+  const [lessonNote, setLessonNote] = useState(null);
+  const [noteMessage, setNoteMessage] = useState("");
+  const [noteError, setNoteError] = useState("");
 
   const [isLoading, setIsLoading] = useState(true);
   const [isEnrolling, setIsEnrolling] = useState(false);
   const [isCompleting, setIsCompleting] = useState(false);
   const [isReviewing, setIsReviewing] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
+  const [isSavingCourse, setIsSavingCourse] = useState(false);
+  const [isGeneratingNotes, setIsGeneratingNotes] = useState(false);
+  const [isSavingNote, setIsSavingNote] = useState(false);
   const [editingReviewId, setEditingReviewId] = useState("");
 
   const [reviewForm, setReviewForm] = useState({
     rating: 5,
     comment: "",
   });
+
+  const [noteForm, setNoteForm] = useState({
+    title: "",
+    content: "",
+  });
+
+  const [discussionForm, setDiscussionForm] = useState({
+    title: "",
+    message: "",
+  });
+
+  const [replyForms, setReplyForms] = useState({});
 
   const [editReviewForm, setEditReviewForm] = useState({
     rating: 5,
@@ -144,6 +186,10 @@ function CourseDetailsPage() {
 
   const canReview =
     isAuthenticated && user?.role === "student" && isEnrolled && !hasReviewed;
+
+  const canUseDiscussions =
+    isAuthenticated &&
+    (user?.role === "admin" || user?.role === "instructor" || isEnrolled);
 
   const completedLessons = progress?.progress?.completedLessons || [];
   const lessonProgressList = progress?.progress?.lessonProgress || [];
@@ -222,6 +268,17 @@ function CourseDetailsPage() {
     }
   };
 
+  const loadDiscussions = async () => {
+    if (!canUseDiscussions) return;
+
+    try {
+      const data = await getCourseDiscussions(id);
+      setDiscussions(data.discussions || []);
+    } catch {
+      setDiscussions([]);
+    }
+  };
+
   const loadCourse = async () => {
     try {
       setIsLoading(true);
@@ -238,9 +295,29 @@ function CourseDetailsPage() {
     }
   };
 
+  const loadSavedStatus = async () => {
+    if (!isAuthenticated || user?.role !== "student") return;
+
+    try {
+      const data = await getSavedCourses();
+
+      const saved = (data.courses || []).some(
+        (savedCourse) => getUserId(savedCourse) === id,
+      );
+
+      setIsSaved(saved);
+    } catch {
+      setIsSaved(false);
+    }
+  };
+
   useEffect(() => {
     loadCourse();
   }, [id]);
+
+  useEffect(() => {
+    loadSavedStatus();
+  }, [id, isAuthenticated, user?.role]);
 
   useEffect(() => {
     loadProgress();
@@ -249,6 +326,10 @@ function CourseDetailsPage() {
   useEffect(() => {
     loadQuizzes();
   }, [id, canViewAllLessons]);
+
+  useEffect(() => {
+    loadDiscussions();
+  }, [id, canUseDiscussions]);
 
   useEffect(() => {
     if (!course || !continueLesson?.lessonId || activeLesson) return;
@@ -262,8 +343,41 @@ function CourseDetailsPage() {
       });
 
       setNextLesson(getNextLessonLocal(found.lesson._id));
+
+      if (canTrackProgress) {
+        loadLessonNote(found.lesson._id);
+      }
     }
-  }, [course, continueLesson, canViewAllLessons, activeLesson]);
+  }, [
+    course,
+    continueLesson,
+    canViewAllLessons,
+    activeLesson,
+    canTrackProgress,
+  ]);
+
+  const loadLessonNote = async (lessonId) => {
+    if (!canTrackProgress || !lessonId) return;
+
+    try {
+      setNoteError("");
+      setNoteMessage("");
+
+      const data = await getLessonNote(id, lessonId);
+
+      setLessonNote(data.note || null);
+      setNoteForm({
+        title: data.note?.title || "",
+        content: data.note?.content || "",
+      });
+    } catch {
+      setLessonNote(null);
+      setNoteForm({
+        title: "",
+        content: "",
+      });
+    }
+  };
 
   const handleFreeEnroll = async () => {
     try {
@@ -282,6 +396,35 @@ function CourseDetailsPage() {
       );
     } finally {
       setIsEnrolling(false);
+    }
+  };
+
+  const handleToggleSaveCourse = async () => {
+    if (!isAuthenticated || user?.role !== "student") {
+      setEnrollError("Please login as a student to save this course.");
+      return;
+    }
+
+    try {
+      setIsSavingCourse(true);
+      setEnrollError("");
+      setEnrollMessage("");
+
+      if (isSaved) {
+        await removeSavedCourse(id);
+        setIsSaved(false);
+        setEnrollMessage("Course removed from saved list.");
+      } else {
+        await saveCourse(id);
+        setIsSaved(true);
+        setEnrollMessage("Course saved successfully.");
+      }
+    } catch (err) {
+      setEnrollError(
+        err.response?.data?.message || "Unable to update saved course.",
+      );
+    } finally {
+      setIsSavingCourse(false);
     }
   };
 
@@ -395,6 +538,10 @@ function CourseDetailsPage() {
     setNextLesson(getNextLessonLocal(lesson._id));
 
     if (canTrackProgress) {
+      await loadLessonNote(lesson._id);
+    }
+
+    if (canTrackProgress) {
       try {
         const data = await updateLessonWatchProgress(id, {
           lessonId: lesson._id,
@@ -470,6 +617,158 @@ function CourseDetailsPage() {
   const handleOpenNextLesson = () => {
     if (!nextLesson) return;
     handleOpenLesson(nextLesson.lesson, nextLesson.section);
+  };
+
+  const handleSaveLessonNote = async (event) => {
+    event.preventDefault();
+
+    if (!activeLesson?._id) return;
+
+    if (!noteForm.content.trim()) {
+      setNoteError("Note content is required.");
+      return;
+    }
+
+    try {
+      setIsSavingNote(true);
+      setNoteError("");
+      setNoteMessage("");
+
+      const data = await saveLessonNote(id, activeLesson._id, {
+        title: noteForm.title,
+        content: noteForm.content,
+      });
+
+      setLessonNote(data.note);
+      setNoteMessage(data.message || "Note saved successfully.");
+    } catch (err) {
+      setNoteError(err.response?.data?.message || "Unable to save note.");
+    } finally {
+      setIsSavingNote(false);
+    }
+  };
+
+  const handleDeleteLessonNote = async () => {
+    if (!activeLesson?._id) return;
+
+    const confirmed = window.confirm("Delete this note?");
+
+    if (!confirmed) return;
+
+    try {
+      setIsSavingNote(true);
+      setNoteError("");
+      setNoteMessage("");
+
+      await deleteLessonNote(id, activeLesson._id);
+
+      setLessonNote(null);
+      setNoteForm({
+        title: "",
+        content: "",
+      });
+
+      setNoteMessage("Note deleted successfully.");
+    } catch (err) {
+      setNoteError(err.response?.data?.message || "Unable to delete note.");
+    } finally {
+      setIsSavingNote(false);
+    }
+  };
+  const handleGenerateStudyNotes = async () => {
+    try {
+      setStudyNotesError("");
+      setIsGeneratingNotes(true);
+
+      const data = await generateStudyNotes(id);
+
+      setStudyNotes(data.notes);
+    } catch (err) {
+      setStudyNotesError(
+        err.response?.data?.message || "Unable to generate study notes.",
+      );
+    } finally {
+      setIsGeneratingNotes(false);
+    }
+  };
+
+  const handleSubmitDiscussion = async (event) => {
+    event.preventDefault();
+
+    if (!discussionForm.title.trim() || !discussionForm.message.trim()) {
+      setDiscussionError("Discussion title and message are required.");
+      return;
+    }
+
+    try {
+      setDiscussionError("");
+      setDiscussionMessage("");
+
+      await createDiscussion(id, {
+        title: discussionForm.title.trim(),
+        message: discussionForm.message.trim(),
+      });
+
+      setDiscussionForm({
+        title: "",
+        message: "",
+      });
+
+      setDiscussionMessage("Question posted successfully.");
+      await loadDiscussions();
+    } catch (err) {
+      setDiscussionError(
+        err.response?.data?.message || "Unable to post discussion.",
+      );
+    }
+  };
+
+  const handleSubmitReply = async (event, discussionId) => {
+    event.preventDefault();
+
+    const message = replyForms[discussionId] || "";
+
+    if (!message.trim()) {
+      setDiscussionError("Reply message is required.");
+      return;
+    }
+
+    try {
+      setDiscussionError("");
+      setDiscussionMessage("");
+
+      await replyToDiscussion(discussionId, {
+        message: message.trim(),
+      });
+
+      setReplyForms((current) => ({
+        ...current,
+        [discussionId]: "",
+      }));
+
+      setDiscussionMessage("Reply posted successfully.");
+      await loadDiscussions();
+    } catch (err) {
+      setDiscussionError(
+        err.response?.data?.message || "Unable to post reply.",
+      );
+    }
+  };
+
+  const handleToggleResolved = async (discussionId) => {
+    try {
+      setDiscussionError("");
+      setDiscussionMessage("");
+
+      const data = await toggleDiscussionResolved(discussionId);
+
+      setDiscussionMessage(data.message || "Discussion updated.");
+      await loadDiscussions();
+    } catch (err) {
+      setDiscussionError(
+        err.response?.data?.message || "Unable to update discussion.",
+      );
+    }
   };
 
   const handleSubmitReview = async (event) => {
@@ -691,6 +990,21 @@ function CourseDetailsPage() {
             {formatPrice(course.price)}
           </p>
 
+          {isAuthenticated && user?.role === "student" ? (
+            <button
+              type="button"
+              onClick={handleToggleSaveCourse}
+              disabled={isSavingCourse}
+              className="mt-4 w-full rounded-md border border-emerald-300 bg-white px-4 py-2 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isSavingCourse
+                ? "Updating..."
+                : isSaved
+                  ? "Saved ✓"
+                  : "Save Course"}
+            </button>
+          ) : null}
+
           <div className="mt-6 border-t border-zinc-100 pt-5">
             <p className="text-sm text-zinc-500">Instructor</p>
 
@@ -861,6 +1175,82 @@ function CourseDetailsPage() {
                   </button>
                 ) : null}
               </div>
+            </div>
+          ) : null}
+          {canTrackProgress ? (
+            <div className="mt-8 border-t border-zinc-200 pt-6">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-zinc-950">
+                    My Lesson Notes
+                  </h3>
+                  <p className="mt-1 text-sm text-zinc-600">
+                    Save your personal notes for this lesson.
+                  </p>
+                </div>
+
+                {lessonNote ? (
+                  <button
+                    type="button"
+                    onClick={handleDeleteLessonNote}
+                    disabled={isSavingNote}
+                    className="rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:bg-red-300"
+                  >
+                    Delete Note
+                  </button>
+                ) : null}
+              </div>
+
+              {noteMessage ? (
+                <div className="mt-4 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+                  {noteMessage}
+                </div>
+              ) : null}
+
+              {noteError ? (
+                <div className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                  {noteError}
+                </div>
+              ) : null}
+
+              <form onSubmit={handleSaveLessonNote} className="mt-5 space-y-4">
+                <input
+                  type="text"
+                  value={noteForm.title}
+                  onChange={(event) =>
+                    setNoteForm((current) => ({
+                      ...current,
+                      title: event.target.value,
+                    }))
+                  }
+                  placeholder="Note title, optional"
+                  className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
+                />
+
+                <textarea
+                  value={noteForm.content}
+                  onChange={(event) =>
+                    setNoteForm((current) => ({
+                      ...current,
+                      content: event.target.value,
+                    }))
+                  }
+                  placeholder="Write your lesson notes here..."
+                  className="min-h-36 w-full resize-y rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
+                />
+
+                <button
+                  type="submit"
+                  disabled={isSavingNote || !noteForm.content.trim()}
+                  className="rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-emerald-400"
+                >
+                  {isSavingNote
+                    ? "Saving..."
+                    : lessonNote
+                      ? "Update Note"
+                      : "Save Note"}
+                </button>
+              </form>
             </div>
           ) : null}
         </div>
@@ -1049,6 +1439,303 @@ function CourseDetailsPage() {
                 </div>
               </div>
             ))
+          )}
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h2 className="text-xl font-semibold text-zinc-950">
+              AI Study Notes
+            </h2>
+
+            <p className="mt-1 text-sm text-zinc-600">
+              Generate quick revision notes, key points, terms, and practice
+              questions.
+            </p>
+          </div>
+
+          {canViewAllLessons ? (
+            <button
+              type="button"
+              onClick={handleGenerateStudyNotes}
+              disabled={isGeneratingNotes}
+              className="rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-emerald-400"
+            >
+              {isGeneratingNotes ? "Generating..." : "Generate Notes with AI"}
+            </button>
+          ) : null}
+        </div>
+
+        {!canViewAllLessons ? (
+          <p className="mt-5 rounded-md bg-stone-50 px-3 py-2 text-sm text-zinc-600">
+            Enroll in this course to generate AI study notes.
+          </p>
+        ) : null}
+
+        {studyNotesError ? (
+          <div className="mt-5 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {studyNotesError}
+          </div>
+        ) : null}
+
+        {studyNotes ? (
+          <div className="mt-6 space-y-5">
+            <div className="rounded-xl border border-emerald-100 bg-emerald-50/40 p-5">
+              <h3 className="font-semibold text-zinc-950">Summary</h3>
+              <p className="mt-2 whitespace-pre-line text-sm leading-6 text-zinc-700">
+                {studyNotes.summary}
+              </p>
+            </div>
+
+            {studyNotes.keyPoints?.length ? (
+              <div className="rounded-xl border border-zinc-200 p-5">
+                <h3 className="font-semibold text-zinc-950">Key Points</h3>
+                <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-zinc-700">
+                  {studyNotes.keyPoints.map((point, index) => (
+                    <li key={index}>{point}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+
+            {studyNotes.importantTerms?.length ? (
+              <div className="rounded-xl border border-zinc-200 p-5">
+                <h3 className="font-semibold text-zinc-950">Important Terms</h3>
+
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  {studyNotes.importantTerms.map((item, index) => (
+                    <div key={index} className="rounded-lg bg-stone-50 p-4">
+                      <p className="font-semibold text-zinc-950">{item.term}</p>
+                      <p className="mt-1 text-sm leading-6 text-zinc-600">
+                        {item.definition}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            {studyNotes.revisionChecklist?.length ? (
+              <div className="rounded-xl border border-zinc-200 p-5">
+                <h3 className="font-semibold text-zinc-950">
+                  Revision Checklist
+                </h3>
+                <ul className="mt-3 space-y-2 text-sm text-zinc-700">
+                  {studyNotes.revisionChecklist.map((item, index) => (
+                    <li key={index}>✅ {item}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+
+            {studyNotes.practiceQuestions?.length ? (
+              <div className="rounded-xl border border-zinc-200 p-5">
+                <h3 className="font-semibold text-zinc-950">
+                  Practice Questions
+                </h3>
+                <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm text-zinc-700">
+                  {studyNotes.practiceQuestions.map((question, index) => (
+                    <li key={index}>{question}</li>
+                  ))}
+                </ol>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+
+      <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h2 className="text-xl font-semibold text-zinc-950">
+              Course Discussion / Q&A
+            </h2>
+            <p className="mt-1 text-sm text-zinc-600">
+              Ask questions, reply to classmates, and get help from the
+              instructor.
+            </p>
+          </div>
+
+          <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800">
+            {discussions.length} questions
+          </span>
+        </div>
+
+        {discussionError ? (
+          <div className="mt-5 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {discussionError}
+          </div>
+        ) : null}
+
+        {discussionMessage ? (
+          <div className="mt-5 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+            {discussionMessage}
+          </div>
+        ) : null}
+
+        {canUseDiscussions ? (
+          <form
+            onSubmit={handleSubmitDiscussion}
+            className="mt-5 rounded-xl border border-emerald-100 bg-emerald-50/40 p-5"
+          >
+            <h3 className="font-semibold text-zinc-950">Ask a question</h3>
+
+            <input
+              type="text"
+              value={discussionForm.title}
+              onChange={(event) =>
+                setDiscussionForm((current) => ({
+                  ...current,
+                  title: event.target.value,
+                }))
+              }
+              placeholder="Example: I am confused about useEffect dependencies"
+              className="mt-4 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
+            />
+
+            <textarea
+              value={discussionForm.message}
+              onChange={(event) =>
+                setDiscussionForm((current) => ({
+                  ...current,
+                  message: event.target.value,
+                }))
+              }
+              placeholder="Explain your question in detail."
+              className="mt-3 min-h-24 w-full resize-y rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
+            />
+
+            <button
+              type="submit"
+              className="mt-4 rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800"
+            >
+              Post Question
+            </button>
+          </form>
+        ) : (
+          <p className="mt-5 rounded-md bg-stone-50 px-3 py-2 text-sm text-zinc-600">
+            Enroll in this course to participate in discussions.
+          </p>
+        )}
+
+        <div className="mt-6 space-y-5">
+          {discussions.length === 0 ? (
+            <p className="rounded-md bg-stone-50 p-4 text-sm text-zinc-600">
+              No questions yet. Start the discussion.
+            </p>
+          ) : (
+            discussions.map((discussion) => {
+              const canMarkResolved =
+                getUserId(discussion.user) === studentId ||
+                user?.role === "instructor" ||
+                user?.role === "admin";
+
+              return (
+                <div
+                  key={discussion._id}
+                  className="rounded-xl border border-zinc-200 p-5"
+                >
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="font-semibold text-zinc-950">
+                          {discussion.title}
+                        </h3>
+
+                        {discussion.isResolved ? (
+                          <span className="rounded-full bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-800">
+                            Resolved
+                          </span>
+                        ) : (
+                          <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-800">
+                            Open
+                          </span>
+                        )}
+                      </div>
+
+                      <p className="mt-1 text-xs text-zinc-500">
+                        Asked by {discussion.name} •{" "}
+                        {new Date(discussion.createdAt).toLocaleString()}
+                      </p>
+                    </div>
+
+                    {canMarkResolved ? (
+                      <button
+                        type="button"
+                        onClick={() => handleToggleResolved(discussion._id)}
+                        className="rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-100"
+                      >
+                        {discussion.isResolved ? "Reopen" : "Mark Resolved"}
+                      </button>
+                    ) : null}
+                  </div>
+
+                  <p className="mt-4 whitespace-pre-line text-sm leading-6 text-zinc-700">
+                    {discussion.message}
+                  </p>
+
+                  <div className="mt-5 space-y-3">
+                    {discussion.replies?.map((reply, index) => (
+                      <div
+                        key={`${discussion._id}-${index}`}
+                        className="rounded-lg border border-zinc-100 bg-stone-50 p-4"
+                      >
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-sm font-semibold text-zinc-950">
+                            {reply.name}
+                          </p>
+
+                          <span className="rounded-full bg-zinc-200 px-2 py-0.5 text-xs font-medium capitalize text-zinc-700">
+                            {reply.role}
+                          </span>
+                        </div>
+
+                        <p className="mt-2 whitespace-pre-line text-sm leading-6 text-zinc-700">
+                          {reply.message}
+                        </p>
+
+                        <p className="mt-2 text-xs text-zinc-400">
+                          {reply.createdAt
+                            ? new Date(reply.createdAt).toLocaleString()
+                            : ""}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {canUseDiscussions ? (
+                    <form
+                      onSubmit={(event) =>
+                        handleSubmitReply(event, discussion._id)
+                      }
+                      className="mt-4 flex flex-col gap-3 sm:flex-row"
+                    >
+                      <input
+                        type="text"
+                        value={replyForms[discussion._id] || ""}
+                        onChange={(event) =>
+                          setReplyForms((current) => ({
+                            ...current,
+                            [discussion._id]: event.target.value,
+                          }))
+                        }
+                        placeholder="Write a reply..."
+                        className="flex-1 rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
+                      />
+
+                      <button
+                        type="submit"
+                        className="rounded-md bg-zinc-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800"
+                      >
+                        Reply
+                      </button>
+                    </form>
+                  ) : null}
+                </div>
+              );
+            })
           )}
         </div>
       </div>

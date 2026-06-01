@@ -39,6 +39,13 @@ const userSchema = new mongoose.Schema(
       default: "",
     },
 
+    savedCourses: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Course",
+      },
+    ],
+
     resetPasswordToken: {
       type: String,
     },

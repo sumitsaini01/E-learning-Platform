@@ -5,6 +5,7 @@ import {
   createCourse,
   createCourseReview,
   generateCourseDescription,
+  generateStudyNotes,
   deleteCourse,
   deleteCourseReview,
   deleteLesson,
@@ -15,6 +16,9 @@ import {
   getInstructorAnalytics,
   getInstructorCourses,
   getStudentEnrolledCourses,
+  getSavedCourses,
+  saveCourse,
+  removeSavedCourse,
   moveLesson,
   publishCourse,
   unpublishCourse,
@@ -55,6 +59,29 @@ router.get(
   protect,
   authorizeRoles("student"),
   getStudentEnrolledCourses,
+);
+
+router.get(
+  "/student/saved",
+  protect,
+  authorizeRoles("student"),
+  getSavedCourses,
+);
+
+router.post("/:id/save", protect, authorizeRoles("student"), saveCourse);
+
+router.delete(
+  "/:id/save",
+  protect,
+  authorizeRoles("student"),
+  removeSavedCourse,
+);
+
+router.post(
+  "/:id/generate-study-notes",
+  protect,
+  authorizeRoles("student", "instructor", "admin"),
+  generateStudyNotes,
 );
 
 router.post(

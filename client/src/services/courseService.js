@@ -46,6 +46,42 @@ export const getStudentEnrolledCourses = async () => {
   return response.data;
 };
 
+export const getSavedCourses = async () => {
+  const response = await api.get("/courses/student/saved");
+
+  return response.data;
+};
+
+export const saveCourse = async (courseId) => {
+  if (!courseId) {
+    throw new Error("Course ID is required");
+  }
+
+  const response = await api.post(`/courses/${courseId}/save`);
+
+  return response.data;
+};
+
+export const removeSavedCourse = async (courseId) => {
+  if (!courseId) {
+    throw new Error("Course ID is required");
+  }
+
+  const response = await api.delete(`/courses/${courseId}/save`);
+
+  return response.data;
+};
+
+export const generateStudyNotes = async (courseId) => {
+  if (!courseId) {
+    throw new Error("Course ID is required");
+  }
+
+  const response = await api.post(`/courses/${courseId}/generate-study-notes`);
+
+  return response.data;
+};
+
 export const createCourseReview = async (courseId, payload) => {
   if (!courseId) {
     throw new Error("Course ID is required");

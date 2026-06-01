@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { QRCodeCanvas } from "qrcode.react";
 import { verifyCertificate } from "../services/certificateService";
 
 const printStyles = `
@@ -131,6 +132,8 @@ function CertificateVerificationPage() {
     );
   }
 
+  const verificationUrl = window.location.href;
+
   const issuedDate = new Date(certificate.issuedAt).toLocaleDateString(
     "en-IN",
     {
@@ -236,12 +239,17 @@ function CertificateVerificationPage() {
             </div>
 
             <div className="text-center">
-              <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full border-8 border-amber-300 bg-gradient-to-br from-amber-200 to-amber-500 shadow-lg">
-                <span className="text-3xl">✓</span>
+              <div className="mx-auto flex h-28 w-28 items-center justify-center rounded-xl border border-emerald-900/20 bg-white p-2 shadow-lg">
+                <QRCodeCanvas
+                  value={verificationUrl}
+                  size={96}
+                  level="H"
+                  includeMargin={false}
+                />
               </div>
 
               <p className="mt-3 text-xs font-bold uppercase tracking-wide text-zinc-600">
-                Verified Certificate
+                Scan to Verify
               </p>
 
               <p className="mt-1 break-all text-[11px] font-semibold text-zinc-500">

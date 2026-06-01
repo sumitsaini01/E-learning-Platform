@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
-import { getStudentEnrolledCourses } from "../services/courseService";
+import {
+  getSavedCourses,
+  getStudentEnrolledCourses,
+} from "../services/courseService";
 import {
   generateCertificate,
   getMyCertificates,
@@ -16,6 +19,7 @@ function StudentDashboard() {
   const { user } = useAuth();
 
   const [courses, setCourses] = useState([]);
+  const [savedCourses, setSavedCourses] = useState([]);
   const [progressMap, setProgressMap] = useState({});
   const [quizAttempts, setQuizAttempts] = useState([]);
   const [certificates, setCertificates] = useState([]);
@@ -31,13 +35,19 @@ function StudentDashboard() {
     try {
       setError("");
 
-      const [enrolledData, attemptsData, certificatesData, activitiesData] =
-        await Promise.all([
-          getStudentEnrolledCourses(),
-          getMyQuizAttempts(),
-          getMyCertificates(),
-          getMyActivities({ limit: 8 }),
-        ]);
+      const [
+        enrolledData,
+        savedData,
+        attemptsData,
+        certificatesData,
+        activitiesData,
+      ] = await Promise.all([
+        getStudentEnrolledCourses(),
+        getSavedCourses(),
+        getMyQuizAttempts(),
+        getMyCertificates(),
+        getMyActivities({ limit: 8 }),
+      ]);
 
       const enrolledCourses = enrolledData.courses || [];
 
@@ -55,7 +65,7 @@ function StudentDashboard() {
         }
       });
 
-      setCourses(enrolledCourses);
+      setSavedCourses(savedData.courses || []);
       setProgressMap(nextProgressMap);
       setQuizAttempts(attemptsData.attempts || []);
       setCertificates(certificatesData.certificates || []);
@@ -572,6 +582,68 @@ function StudentDashboard() {
                 </div>
               </div>
             ))
+          )}
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-zinc-950">
+              Saved Courses
+            </h2>
+            <p className="mt-1 text-sm text-zinc-500">
+              Courses you saved to explore later.
+            </p>
+          </div>
+
+          <Link
+            to="/courses"
+            className="text-sm font-medium text-emerald-700 hover:text-emerald-800"
+          >
+            Browse courses
+          </Link>
+        </div>
+
+        <div className="mt-5 grid gap-4 lg:grid-cols-3">
+          {savedCourses.length === 0 ? (
+            <p className="rounded-xl border border-dashed border-zinc-300 p-6 text-center text-sm text-zinc-600 lg:col-span-3">
+              No saved courses yet.
+            </p>
+          ) : (
+            savedCourses.map((course) => {
+              const courseId = getCourseId(course);
+
+              return (
+                <div
+                  key={courseId}
+                  className="rounded-xl border border-zinc-200 bg-stone-50 p-5"
+                >
+                  <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+                    Saved Course
+                  </p>
+
+                  <h3 className="mt-2 line-clamp-2 font-semibold text-zinc-950">
+                    {course.title}
+                  </h3>
+
+                  <p className="mt-2 text-sm capitalize text-zinc-600">
+                    {course.category} • {course.level}
+                  </p>
+
+                  <p className="mt-3 line-clamp-2 text-sm leading-6 text-zinc-600">
+                    {course.description}
+                  </p>
+
+                  <Link
+                    to={`/courses/${courseId}`}
+                    className="mt-5 inline-flex w-full justify-center rounded-md bg-zinc-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800"
+                  >
+                    View Course
+                  </Link>
+                </div>
+              );
+            })
           )}
         </div>
       </div>

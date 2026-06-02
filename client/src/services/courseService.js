@@ -82,6 +82,16 @@ export const generateStudyNotes = async (courseId) => {
   return response.data;
 };
 
+export const generateFlashcards = async (courseId) => {
+  if (!courseId) {
+    throw new Error("Course ID is required");
+  }
+
+  const response = await api.post(`/courses/${courseId}/generate-flashcards`);
+
+  return response.data;
+};
+
 export const createCourseReview = async (courseId, payload) => {
   if (!courseId) {
     throw new Error("Course ID is required");

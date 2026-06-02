@@ -4,6 +4,7 @@ import User from "../models/User.js";
 import QuizAttempt from "../models/QuizAttempt.js";
 import {
   generateCourseDescriptionWithAI,
+  generateFlashcardsWithAI,
   generateStudyNotesWithAI,
 } from "../services/aiQuizService.js";
 
@@ -108,7 +109,7 @@ export const generateCourseDescription = async (req, res) => {
 
 export const generateStudyNotes = async (req, res) => {
   try {
-    const { courseId } = req.params;
+    const { id: courseId } = req.params;
 
     const course = await Course.findById(courseId);
 
@@ -155,6 +156,54 @@ export const generateStudyNotes = async (req, res) => {
       message: "Failed to generate study notes",
       error: process.env.NODE_ENV === "production" ? undefined : error.message,
     });
+  }
+};
+
+export const generateFlashcards = async (req, res) => {
+  try {
+    const { id: courseId } = req.params;
+
+    const course = await Course.findById(courseId);
+
+    if (!course) {
+      return res.status(404).json({
+        success: false,
+        message: "Course not found",
+      });
+    }
+
+    const isInstructor =
+      course.instructor.toString() === req.user._id.toString();
+
+    const isAdmin = req.user.role === "admin";
+
+    const isStudent =
+      req.user.role === "student" &&
+      course.students.some(
+        (studentId) => studentId.toString() === req.user._id.toString(),
+      );
+
+    if (!isInstructor && !isAdmin && !isStudent) {
+      return res.status(403).json({
+        success: false,
+        message: "Not authorized to generate flashcards",
+      });
+    }
+
+    const flashcards = await generateFlashcardsWithAI({
+      courseTitle: course.title,
+      courseDescription: course.description,
+      category: course.category,
+      level: course.level,
+      sections: course.sections || [],
+    });
+
+    return res.status(200).json({
+      success: true,
+      flashcards,
+    });
+  } catch (error) {
+    return sendServerError(res, "Failed to generate flashcards", error);
   }
 };
 

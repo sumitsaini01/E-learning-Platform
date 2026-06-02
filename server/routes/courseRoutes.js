@@ -6,6 +6,7 @@ import {
   createCourseReview,
   generateCourseDescription,
   generateStudyNotes,
+  generateFlashcards,
   deleteCourse,
   deleteCourseReview,
   deleteLesson,
@@ -82,6 +83,13 @@ router.post(
   protect,
   authorizeRoles("student", "instructor", "admin"),
   generateStudyNotes,
+);
+
+router.post(
+  "/:id/generate-flashcards",
+  protect,
+  authorizeRoles("student", "instructor", "admin"),
+  generateFlashcards,
 );
 
 router.post(

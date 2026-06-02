@@ -8,6 +8,7 @@ import {
   enrollInCourse,
   getCourseById,
   generateStudyNotes,
+  generateFlashcards,
   getSavedCourses,
   removeSavedCourse,
   saveCourse,
@@ -124,6 +125,9 @@ function CourseDetailsPage() {
   const [discussionMessage, setDiscussionMessage] = useState("");
   const [studyNotes, setStudyNotes] = useState(null);
   const [studyNotesError, setStudyNotesError] = useState("");
+  const [flashcards, setFlashcards] = useState([]);
+  const [flashcardsError, setFlashcardsError] = useState("");
+  const [flippedCards, setFlippedCards] = useState({});
   const [lessonNote, setLessonNote] = useState(null);
   const [noteMessage, setNoteMessage] = useState("");
   const [noteError, setNoteError] = useState("");
@@ -135,6 +139,7 @@ function CourseDetailsPage() {
   const [isSaved, setIsSaved] = useState(false);
   const [isSavingCourse, setIsSavingCourse] = useState(false);
   const [isGeneratingNotes, setIsGeneratingNotes] = useState(false);
+  const [isGeneratingFlashcards, setIsGeneratingFlashcards] = useState(false);
   const [isSavingNote, setIsSavingNote] = useState(false);
   const [editingReviewId, setEditingReviewId] = useState("");
 
@@ -703,6 +708,31 @@ function CourseDetailsPage() {
     } finally {
       setIsGeneratingNotes(false);
     }
+  };
+
+  const handleGenerateFlashcards = async () => {
+    try {
+      setFlashcardsError("");
+      setIsGeneratingFlashcards(true);
+
+      const data = await generateFlashcards(id);
+
+      setFlashcards(data.flashcards || []);
+      setFlippedCards({});
+    } catch (err) {
+      setFlashcardsError(
+        err.response?.data?.message || "Unable to generate flashcards.",
+      );
+    } finally {
+      setIsGeneratingFlashcards(false);
+    }
+  };
+
+  const handleToggleFlashcard = (index) => {
+    setFlippedCards((current) => ({
+      ...current,
+      [index]: !current[index],
+    }));
   };
 
   const handleSubmitDiscussion = async (event) => {
@@ -1555,6 +1585,76 @@ function CourseDetailsPage() {
                 </ol>
               </div>
             ) : null}
+          </div>
+        ) : null}
+      </div>
+
+      <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h2 className="text-xl font-semibold text-zinc-950">
+              AI Flashcards
+            </h2>
+
+            <p className="mt-1 text-sm text-zinc-600">
+              Generate quick revision flashcards for this course.
+            </p>
+          </div>
+
+          {canViewAllLessons ? (
+            <button
+              type="button"
+              onClick={handleGenerateFlashcards}
+              disabled={isGeneratingFlashcards}
+              className="rounded-md bg-purple-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-purple-800 disabled:cursor-not-allowed disabled:bg-purple-400"
+            >
+              {isGeneratingFlashcards ? "Generating..." : "Generate Flashcards"}
+            </button>
+          ) : null}
+        </div>
+
+        {!canViewAllLessons ? (
+          <p className="mt-5 rounded-md bg-stone-50 px-3 py-2 text-sm text-zinc-600">
+            Enroll in this course to generate AI flashcards.
+          </p>
+        ) : null}
+
+        {flashcardsError ? (
+          <div className="mt-5 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {flashcardsError}
+          </div>
+        ) : null}
+
+        {flashcards.length > 0 ? (
+          <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {flashcards.map((card, index) => {
+              const isFlipped = Boolean(flippedCards[index]);
+
+              return (
+                <button
+                  key={`${card.question}-${index}`}
+                  type="button"
+                  onClick={() => handleToggleFlashcard(index)}
+                  className={`min-h-40 rounded-xl border p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
+                    isFlipped
+                      ? "border-purple-200 bg-purple-50"
+                      : "border-zinc-200 bg-white"
+                  }`}
+                >
+                  <p className="text-xs font-semibold uppercase tracking-wide text-purple-700">
+                    {isFlipped ? "Answer" : "Question"} #{index + 1}
+                  </p>
+
+                  <p className="mt-3 text-sm leading-6 text-zinc-800">
+                    {isFlipped ? card.answer : card.question}
+                  </p>
+
+                  <p className="mt-4 text-xs font-medium text-zinc-500">
+                    Click to {isFlipped ? "view question" : "reveal answer"}
+                  </p>
+                </button>
+              );
+            })}
           </div>
         ) : null}
       </div>

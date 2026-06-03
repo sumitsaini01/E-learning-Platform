@@ -17,6 +17,7 @@ import discussionRoutes from "./routes/discussionRoutes.js";
 import noteRoutes from "./routes/noteRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import careerRoadmapRoutes from "./routes/careerRoadmapRoutes.js";
+import skillTrackingRoutes from "./routes/skillTrackingRoutes.js";
 
 const PORT = process.env.PORT || 5000;
 
@@ -38,6 +39,7 @@ const startServer = async () => {
     app.use("/api/notes", noteRoutes);
     app.use("/api/admin", adminRoutes);
     app.use("/api/career-roadmaps", careerRoadmapRoutes);
+    app.use("/api/skills", skillTrackingRoutes);
     
     app.use(notFound);
     app.use(errorHandler);

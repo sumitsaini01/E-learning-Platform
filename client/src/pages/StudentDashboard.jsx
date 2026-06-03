@@ -276,6 +276,13 @@ function StudentDashboard() {
             </Link>
 
             <Link
+              to="/skills"
+              className="inline-flex justify-center rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-800 transition hover:bg-zinc-100"
+            >
+              Skill Tracking
+            </Link>
+
+            <Link
               to="/courses"
               className="inline-flex justify-center rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-800 transition hover:bg-zinc-100"
             >

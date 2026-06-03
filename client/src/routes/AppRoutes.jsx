@@ -21,6 +21,7 @@ import MyCertificatesPage from "../pages/MyCertificatesPage";
 import AdminDashboardPage from "../pages/AdminDashboardPage";
 import VerifyEmailPage from "../pages/VerifyEmailPage";
 import CareerRoadmapPage from "../pages/CareerRoadmapPage";
+import SkillTrackingPage from "../pages/SkillTrackingPage";
 
 function AppRoutes() {
   return (
@@ -47,6 +48,8 @@ function AppRoutes() {
           <Route path="quizzes/:quizId/attempt" element={<QuizAttemptPage />} />
 
           <Route path="career-roadmap" element={<CareerRoadmapPage />} />
+
+          <Route path="skills" element={<SkillTrackingPage />} />
         </Route>
 
         <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>

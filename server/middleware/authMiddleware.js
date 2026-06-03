@@ -1,14 +1,13 @@
 import jwt from "jsonwebtoken";
+import User from "../models/User.js";
 
-/**
- * Protect route using JWT from Authorization header.
- * Expects: Authorization: Bearer <token>
+/*
+ Protect route using JWT from Authorization header.
+ Expects: Authorization: Bearer <token>
  */
 
-
-export const protect = (req, res, next) => {
+export const protect = async (req, res, next) => {
   try {
-
     const authHeader = req.headers.authorization || "";
 
     if (!authHeader.toLowerCase().startsWith("bearer ")) {
@@ -20,40 +19,43 @@ export const protect = (req, res, next) => {
 
     const token = authHeader.split(" ")[1];
 
-    if (!token) {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    const user = await User.findById(decoded.id).select(
+      "_id name email role avatar",
+    );
+
+    if (!user) {
       return res.status(401).json({
         success: false,
-        message: "Not authorized. Token is missing.",
+        message: "User no longer exists.",
       });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = user;
 
-    req.user = {
-      _id: decoded.id,
-      role: decoded.role,
-    };
-
-    return next();
-  } catch (error) {
-     return res.status(401).json({
+    next();
+  } catch {
+    return res.status(401).json({
       success: false,
       message: "Not authorized. Invalid or expired token.",
     });
   }
 };
 
-/**
- * Role-based authorization middleware.
+/*
+ Role-based authorization middleware.
  */
-export const authorizeRoles = (...allowedRoles) => (req, res, next) => {
-  if (!req.user || !allowedRoles.includes(req.user.role)) {
-    return res.status(403).json({
-      success: false,
-      message: "Forbidden. You do not have permission to access this resource.",
-    });
-  }
+export const authorizeRoles =
+  (...allowedRoles) =>
+  (req, res, next) => {
+    if (!req.user || !allowedRoles.includes(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        message:
+          "Forbidden. You do not have permission to access this resource.",
+      });
+    }
 
-  return next();
-};
-
+    return next();
+  };

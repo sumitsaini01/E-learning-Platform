@@ -5,6 +5,7 @@ import Quiz from "../models/Quiz.js";
 import QuizAttempt from "../models/QuizAttempt.js";
 import User from "../models/User.js";
 import { createActivity, createNotification } from "../utils/activityHelper.js";
+import sendEmail from "../utils/sendEmail.js";
 
 const getTotalLessons = (course) => {
   return (course.sections || []).reduce((total, section) => {
@@ -171,6 +172,30 @@ export const generateCertificate = async (req, res) => {
       message: `Certificate generated for ${eligibility.course.title}`,
       course: eligibility.course._id,
     });
+
+    try {
+      const clientUrl = process.env.CLIENT_URL || "http://localhost:5173";
+      const verificationUrl = `${clientUrl}${certificate.verificationUrl}`;
+
+      await sendEmail({
+        to: req.user.email,
+        subject: `Your certificate is ready for ${eligibility.course.title}`,
+        html: `
+      <div style="font-family: Arial, sans-serif; line-height: 1.6;">
+        <h2>Certificate Generated Successfully</h2>
+        <p>Hello ${studentName},</p>
+        <p>Congratulations! Your certificate for <strong>${eligibility.course.title}</strong> has been generated.</p>
+        <p><strong>Certificate ID:</strong> ${certificate.certificateId}</p>
+        <p>You can verify your certificate using the link below:</p>
+        <a href="${verificationUrl}" style="display:inline-block;padding:10px 16px;background:#047857;color:white;text-decoration:none;border-radius:6px;">
+          Verify Certificate
+        </a>
+      </div>
+    `,
+      });
+    } catch (emailError) {
+      console.error("Certificate email failed:", emailError.message);
+    }
 
     return res.status(201).json({
       success: true,

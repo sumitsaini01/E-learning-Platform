@@ -2,11 +2,13 @@ import mongoose from "mongoose";
 import Course from "../models/Course.js";
 import User from "../models/User.js";
 import QuizAttempt from "../models/QuizAttempt.js";
+import AiStudyResource from "../models/AiStudyResource.js";
 import {
   generateCourseDescriptionWithAI,
   generateFlashcardsWithAI,
   generateStudyNotesWithAI,
 } from "../services/aiQuizService.js";
+import sendEmail from "../utils/sendEmail.js";
 
 const escapeRegex = (value) => {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -146,16 +148,30 @@ export const generateStudyNotes = async (req, res) => {
       sections: course.sections || [],
     });
 
+    const resource = await AiStudyResource.findOneAndUpdate(
+      {
+        user: req.user._id,
+        course: courseId,
+        type: "study_notes",
+      },
+      {
+        notes,
+        flashcards: [],
+      },
+      {
+        upsert: true,
+        new: true,
+        runValidators: true,
+      },
+    );
+
     return res.status(200).json({
       success: true,
-      notes,
+      message: "Study notes generated and saved successfully",
+      notes: resource.notes,
     });
   } catch (error) {
-    return res.status(500).json({
-      success: false,
-      message: "Failed to generate study notes",
-      error: process.env.NODE_ENV === "production" ? undefined : error.message,
-    });
+    return sendServerError(res, "Failed to generate study notes", error);
   }
 };
 
@@ -198,12 +214,57 @@ export const generateFlashcards = async (req, res) => {
       sections: course.sections || [],
     });
 
+    const resource = await AiStudyResource.findOneAndUpdate(
+      {
+        user: req.user._id,
+        course: courseId,
+        type: "flashcards",
+      },
+      {
+        notes: {},
+        flashcards,
+      },
+      {
+        upsert: true,
+        new: true,
+        runValidators: true,
+      },
+    );
+
     return res.status(200).json({
       success: true,
-      flashcards,
+      message: "Flashcards generated and saved successfully",
+      flashcards: resource.flashcards,
     });
   } catch (error) {
     return sendServerError(res, "Failed to generate flashcards", error);
+  }
+};
+
+export const getAiStudyResources = async (req, res) => {
+  try {
+    const { id: courseId } = req.params;
+
+    const resources = await AiStudyResource.find({
+      user: req.user._id,
+      course: courseId,
+    });
+
+    const notesResource = resources.find(
+      (resource) => resource.type === "study_notes",
+    );
+
+    const flashcardsResource = resources.find(
+      (resource) => resource.type === "flashcards",
+    );
+
+    return res.status(200).json({
+      success: true,
+      notes: notesResource?.notes || null,
+      flashcards: flashcardsResource?.flashcards || [],
+    });
+  } catch (error) {
+    return sendServerError(res, "Failed to fetch AI study resources", error);
   }
 };
 
@@ -241,8 +302,11 @@ export const getCourses = async (req, res) => {
       category,
       minPrice,
       maxPrice,
+      priceType,
+      minRating,
       search,
       level,
+      sort = "newest",
       page = 1,
       limit = 10,
     } = req.query;
@@ -251,13 +315,39 @@ export const getCourses = async (req, res) => {
     const pageNumber = Math.max(Number(page) || 1, 1);
     const limitNumber = Math.min(Math.max(Number(limit) || 10, 1), 100);
 
-    if (category) filter.category = category.toLowerCase();
-    if (level) filter.level = level;
+    if (category?.trim()) {
+      const safeCategory = escapeRegex(category.trim().toLowerCase());
 
-    if (minPrice || maxPrice) {
+      filter.category = {
+        $regex: safeCategory,
+        $options: "i",
+      };
+    }
+
+    if (level) {
+      filter.level = level;
+    }
+
+    if (priceType === "free") {
+      filter.price = 0;
+    } else if (priceType === "paid") {
+      filter.price = { $gt: 0 };
+    } else if (minPrice || maxPrice) {
       filter.price = {};
-      if (minPrice) filter.price.$gte = Number(minPrice);
-      if (maxPrice) filter.price.$lte = Number(maxPrice);
+
+      if (minPrice) {
+        filter.price.$gte = Number(minPrice);
+      }
+
+      if (maxPrice) {
+        filter.price.$lte = Number(maxPrice);
+      }
+    }
+
+    if (minRating) {
+      filter.averageRating = {
+        $gte: Number(minRating),
+      };
     }
 
     if (search?.trim()) {
@@ -282,9 +372,19 @@ export const getCourses = async (req, res) => {
       ];
     }
 
+    const sortOptions = {
+      newest: { createdAt: -1 },
+      "highest-rated": { averageRating: -1, numReviews: -1 },
+      popular: { students: -1, averageRating: -1 },
+      "price-low": { price: 1 },
+      "price-high": { price: -1 },
+    };
+
+    const sortBy = sortOptions[sort] || sortOptions.newest;
+
     const courses = await Course.find(filter)
       .populate("instructor", "name email")
-      .sort({ createdAt: -1 })
+      .sort(sortBy)
       .skip((pageNumber - 1) * limitNumber)
       .limit(limitNumber);
 
@@ -369,6 +469,23 @@ export const enrollCourse = async (req, res) => {
       "instructor",
       "name email",
     );
+
+    try {
+      await sendEmail({
+        to: req.user.email,
+        subject: `You are enrolled in ${updatedCourse.title}`,
+        html: `
+      <div style="font-family: Arial, sans-serif; line-height: 1.6;">
+        <h2>Course Enrollment Successful</h2>
+        <p>Hello ${req.user.name || "Student"},</p>
+        <p>You have successfully enrolled in <strong>${updatedCourse.title}</strong>.</p>
+        <p>You can now start learning from your SkillSphere dashboard.</p>
+      </div>
+    `,
+      });
+    } catch (emailError) {
+      console.error("Course enrollment email failed:", emailError.message);
+    }
 
     return res.status(200).json({
       success: true,
@@ -509,6 +626,95 @@ export const getSavedCourses = async (req, res) => {
     });
   } catch (error) {
     return sendServerError(res, "Failed to fetch saved courses", error);
+  }
+};
+
+export const getRecommendedCourses = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).select("savedCourses");
+
+    const enrolledCourses = await Course.find({
+      students: req.user._id,
+    }).select("_id category level");
+
+    const enrolledCourseIds = enrolledCourses.map((course) => course._id);
+
+    const savedCourseIds = user?.savedCourses || [];
+
+    const preferredCategories = [
+      ...new Set(enrolledCourses.map((course) => course.category)),
+    ];
+
+    const preferredLevels = [
+      ...new Set(enrolledCourses.map((course) => course.level)),
+    ];
+
+    const excludedCourseIds = [...enrolledCourseIds, ...savedCourseIds];
+
+    const filter = {
+      status: "published",
+      _id: {
+        $nin: excludedCourseIds,
+      },
+    };
+
+    if (preferredCategories.length > 0) {
+      filter.category = {
+        $in: preferredCategories,
+      };
+    }
+
+    const recommendations = await Course.find(filter)
+      .populate("instructor", "name email")
+      .sort({
+        averageRating: -1,
+        numReviews: -1,
+        createdAt: -1,
+      })
+      .limit(6);
+
+    let fallbackCourses = [];
+
+    if (recommendations.length < 6) {
+      fallbackCourses = await Course.find({
+        status: "published",
+        _id: {
+          $nin: [
+            ...excludedCourseIds,
+            ...recommendations.map((course) => course._id),
+          ],
+        },
+      })
+        .populate("instructor", "name email")
+        .sort({
+          averageRating: -1,
+          numReviews: -1,
+          createdAt: -1,
+        })
+        .limit(6 - recommendations.length);
+    }
+
+    const courses = [...recommendations, ...fallbackCourses].map((course) => {
+      const matchedCategory = preferredCategories.includes(course.category);
+      const matchedLevel = preferredLevels.includes(course.level);
+
+      return {
+        ...course.toObject(),
+        recommendationReason: matchedCategory
+          ? `Because you are learning ${course.category}`
+          : matchedLevel
+            ? `Based on your ${course.level} level courses`
+            : "Popular course you may like",
+      };
+    });
+
+    return res.status(200).json({
+      success: true,
+      count: courses.length,
+      courses,
+    });
+  } catch (error) {
+    return sendServerError(res, "Failed to fetch recommended courses", error);
   }
 };
 export const getInstructorAnalytics = async (req, res) => {

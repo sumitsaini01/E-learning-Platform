@@ -1,4 +1,5 @@
 import express from "express";
+import rateLimit from "express-rate-limit";
 import {
   addLesson,
   addSection,
@@ -18,6 +19,8 @@ import {
   getInstructorCourses,
   getStudentEnrolledCourses,
   getSavedCourses,
+  getRecommendedCourses,
+  getAiStudyResources,
   saveCourse,
   removeSavedCourse,
   moveLesson,
@@ -33,12 +36,25 @@ import { authorizeRoles, protect } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
+const aiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: "Too many AI requests. Please try again later.",
+  },
+});
+
 router.post(
   "/generate-description",
+  aiLimiter,
   protect,
   authorizeRoles("instructor", "admin"),
   generateCourseDescription,
 );
+
 router.post("/", protect, authorizeRoles("instructor", "admin"), createCourse);
 
 router.get(
@@ -69,6 +85,13 @@ router.get(
   getSavedCourses,
 );
 
+router.get(
+  "/student/recommended",
+  protect,
+  authorizeRoles("student"),
+  getRecommendedCourses,
+);
+
 router.post("/:id/save", protect, authorizeRoles("student"), saveCourse);
 
 router.delete(
@@ -80,6 +103,7 @@ router.delete(
 
 router.post(
   "/:id/generate-study-notes",
+  aiLimiter,
   protect,
   authorizeRoles("student", "instructor", "admin"),
   generateStudyNotes,
@@ -87,9 +111,17 @@ router.post(
 
 router.post(
   "/:id/generate-flashcards",
+  aiLimiter,
   protect,
   authorizeRoles("student", "instructor", "admin"),
   generateFlashcards,
+);
+
+router.get(
+  "/:id/ai-study-resources",
+  protect,
+  authorizeRoles("student", "instructor", "admin"),
+  getAiStudyResources,
 );
 
 router.post(

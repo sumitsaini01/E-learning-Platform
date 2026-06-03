@@ -75,3 +75,15 @@ export const getLearningActivity = async () => {
 
   return response.data;
 };
+
+export const verifyEmailOtp = async (payload) => {
+  const response = await api.post("/auth/verify-email-otp", payload);
+
+  return response.data;
+};
+
+export const resendEmailOtp = async (email) => {
+  const response = await api.post("/auth/resend-email-otp", { email });
+
+  return response.data;
+};

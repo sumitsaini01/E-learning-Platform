@@ -18,6 +18,9 @@ import UnauthorizedPage from "../pages/UnauthorizedPage";
 import ProtectedRoute from "./ProtectedRoute";
 import CertificateVerificationPage from "../pages/CertificateVerificationPage";
 import MyCertificatesPage from "../pages/MyCertificatesPage";
+import AdminDashboardPage from "../pages/AdminDashboardPage";
+import VerifyEmailPage from "../pages/VerifyEmailPage";
+import CareerRoadmapPage from "../pages/CareerRoadmapPage";
 
 function AppRoutes() {
   return (
@@ -28,6 +31,7 @@ function AppRoutes() {
         <Route path="courses/:id" element={<CourseDetailsPage />} />
         <Route path="login" element={<LoginPage />} />
         <Route path="register" element={<RegisterPage />} />
+        <Route path="verify-email" element={<VerifyEmailPage />} />
         <Route path="forgot-password" element={<ForgotPasswordPage />} />
         <Route path="reset-password/:token" element={<ResetPasswordPage />} />
 
@@ -41,6 +45,12 @@ function AppRoutes() {
           <Route path="my-certificates" element={<MyCertificatesPage />} />
 
           <Route path="quizzes/:quizId/attempt" element={<QuizAttemptPage />} />
+
+          <Route path="career-roadmap" element={<CareerRoadmapPage />} />
+        </Route>
+
+        <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
+          <Route path="dashboard/admin" element={<AdminDashboardPage />} />
         </Route>
 
         <Route element={<ProtectedRoute allowedRoles={["instructor"]} />}>

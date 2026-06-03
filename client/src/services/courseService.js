@@ -52,6 +52,12 @@ export const getSavedCourses = async () => {
   return response.data;
 };
 
+export const getRecommendedCourses = async () => {
+  const response = await api.get("/courses/student/recommended");
+
+  return response.data;
+};
+
 export const saveCourse = async (courseId) => {
   if (!courseId) {
     throw new Error("Course ID is required");
@@ -88,6 +94,16 @@ export const generateFlashcards = async (courseId) => {
   }
 
   const response = await api.post(`/courses/${courseId}/generate-flashcards`);
+
+  return response.data;
+};
+
+export const getAiStudyResources = async (courseId) => {
+  if (!courseId) {
+    throw new Error("Course ID is required");
+  }
+
+  const response = await api.get(`/courses/${courseId}/ai-study-resources`);
 
   return response.data;
 };

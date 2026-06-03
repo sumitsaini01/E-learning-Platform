@@ -1,13 +1,10 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { FiEye, FiEyeOff } from "react-icons/fi";
 import { Link, useNavigate } from "react-router-dom";
-import { useAuth } from "../hooks/useAuth";
 import { register } from "../services/authService";
-import { getRoleRedirectPath } from "../utils/getRoleRedirectPath";
 
 function RegisterPage() {
   const navigate = useNavigate();
-  const { isAuthenticated, login, user } = useAuth();
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -17,12 +14,6 @@ function RegisterPage() {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      navigate(getRoleRedirectPath(user?.role), { replace: true });
-    }
-  }, [isAuthenticated, navigate, user?.role]);
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -35,12 +26,17 @@ function RegisterPage() {
     setIsLoading(true);
 
     try {
-      await register(formData);
-      const loggedInUser = await login({
-        email: formData.email,
-        password: formData.password,
+      const data = await register(formData);
+
+      navigate("/verify-email", {
+        replace: true,
+        state: {
+          email: data.email || formData.email,
+          message:
+            data.message ||
+            "Registration successful. Please verify your email.",
+        },
       });
-      navigate(getRoleRedirectPath(loggedInUser.role), { replace: true });
     } catch (err) {
       setError(
         err.response?.data?.message ||

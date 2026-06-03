@@ -17,6 +17,21 @@ const userSchema = new mongoose.Schema(
       trim: true,
     },
 
+    isEmailVerified: {
+      type: Boolean,
+      default: false,
+    },
+
+    emailVerificationOtp: {
+      type: String,
+      select: false,
+    },
+
+    emailVerificationOtpExpire: {
+      type: Date,
+      select: false,
+    },
+
     password: {
       type: String,
       required: true,
@@ -102,6 +117,19 @@ userSchema.methods.getResetPasswordToken = function () {
   this.resetPasswordExpire = Date.now() + 15 * 60 * 1000;
 
   return resetToken;
+};
+
+userSchema.methods.getEmailVerificationOtp = function () {
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+  this.emailVerificationOtp = crypto
+    .createHash("sha256")
+    .update(otp)
+    .digest("hex");
+
+  this.emailVerificationOtpExpire = Date.now() + 10 * 60 * 1000;
+
+  return otp;
 };
 
 const User = mongoose.model("User", userSchema);

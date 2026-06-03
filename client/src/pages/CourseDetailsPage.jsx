@@ -9,6 +9,7 @@ import {
   getCourseById,
   generateStudyNotes,
   generateFlashcards,
+  getAiStudyResources,
   getSavedCourses,
   removeSavedCourse,
   saveCourse,
@@ -284,6 +285,20 @@ function CourseDetailsPage() {
     }
   };
 
+  const loadAiStudyResources = async () => {
+    if (!canViewAllLessons) return;
+
+    try {
+      const data = await getAiStudyResources(id);
+
+      setStudyNotes(data.notes || null);
+      setFlashcards(data.flashcards || []);
+      setFlippedCards({});
+    } catch {
+      setStudyNotes(null);
+      setFlashcards([]);
+    }
+  };
   const loadCourse = async () => {
     try {
       setIsLoading(true);
@@ -335,6 +350,10 @@ function CourseDetailsPage() {
   useEffect(() => {
     loadDiscussions();
   }, [id, canUseDiscussions]);
+
+  useEffect(() => {
+    loadAiStudyResources();
+  }, [id, canViewAllLessons]);
 
   useEffect(() => {
     if (!course || !continueLesson?.lessonId || activeLesson) return;

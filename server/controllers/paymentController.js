@@ -3,6 +3,7 @@ import Razorpay from "razorpay";
 import Course from "../models/Course.js";
 import Order from "../models/Order.js";
 import { createActivity, createNotification } from "../utils/activityHelper.js";
+import sendEmail from "../utils/sendEmail.js";
 
 const getRazorpayInstance = () => {
   if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
@@ -21,9 +22,9 @@ const isStudentEnrolled = (course, userId) => {
   );
 };
 
-/**
- * POST /api/payment/create-order
- */
+/*
+  POST /api/payment/create-order
+*/
 export const createOrder = async (req, res) => {
   try {
     const { courseId } = req.body;
@@ -86,6 +87,23 @@ export const createOrder = async (req, res) => {
         message: `${req.user.name || "A student"} enrolled in ${course.title}`,
         course: course._id,
       });
+
+      try {
+        await sendEmail({
+          to: req.user.email,
+          subject: `You are enrolled in ${course.title}`,
+          html: `
+      <div style="font-family: Arial, sans-serif; line-height: 1.6;">
+        <h2>Course Enrollment Successful</h2>
+        <p>Hello ${req.user.name || "Student"},</p>
+        <p>You have successfully enrolled in <strong>${course.title}</strong>.</p>
+        <p>You can now start learning from your SkillSphere dashboard.</p>
+      </div>
+    `,
+        });
+      } catch (emailError) {
+        console.error("Enrollment email failed:", emailError.message);
+      }
 
       return res.status(200).json({
         success: true,
@@ -154,9 +172,9 @@ export const createOrder = async (req, res) => {
   }
 };
 
-/**
- * POST /api/payment/verify
- */
+/*
+  POST /api/payment/verify
+*/
 export const verifyPayment = async (req, res) => {
   try {
     const {
@@ -258,6 +276,25 @@ export const verifyPayment = async (req, res) => {
       course: course._id,
     });
 
+    try {
+      await sendEmail({
+        to: req.user.email,
+        subject: `Payment successful for ${course.title}`,
+        html: `
+      <div style="font-family: Arial, sans-serif; line-height: 1.6;">
+        <h2>Payment Successful</h2>
+        <p>Hello ${req.user.name || "Student"},</p>
+        <p>Your payment was successful and you are now enrolled in:</p>
+        <h3>${course.title}</h3>
+        <p>Amount Paid: <strong>₹${order.amount}</strong></p>
+        <p>You can start learning from your SkillSphere dashboard.</p>
+      </div>
+    `,
+      });
+    } catch (emailError) {
+      console.error("Payment success email failed:", emailError.message);
+    }
+
     return res.status(200).json({
       success: true,
       message: "Payment successful. You are enrolled in this course.",
@@ -275,9 +312,9 @@ export const verifyPayment = async (req, res) => {
   }
 };
 
-/**
- * GET /api/payment/my-purchases
- */
+/*
+  GET /api/payment/my-purchases
+*/
 export const getMyPurchasedCourses = async (req, res) => {
   try {
     const orders = await Order.find({

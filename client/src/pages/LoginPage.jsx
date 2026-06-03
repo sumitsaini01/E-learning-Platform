@@ -35,6 +35,16 @@ function LoginPage() {
       const user = await login(formData);
       navigate(redirectTo || getRoleRedirectPath(user.role), { replace: true });
     } catch (err) {
+      if (err.response?.data?.requiresEmailVerification) {
+        navigate("/verify-email", {
+          state: {
+            email: err.response.data.email || formData.email,
+            message: err.response.data.message,
+          },
+        });
+        return;
+      }
+
       setError(
         err.response?.data?.message ||
           err.message ||

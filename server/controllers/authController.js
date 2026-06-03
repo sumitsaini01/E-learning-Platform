@@ -32,7 +32,13 @@ export const registerUser = async (req, res) => {
       return res.status(400).json({ message: "All fields are required" });
     }
 
-    const existingUser = await User.findOne({ email });
+    const allowedPublicRoles = ["student", "instructor"];
+    const safeRole = allowedPublicRoles.includes(role) ? role : "student";
+
+    const existingUser = await User.findOne({
+      email: email.trim().toLowerCase(),
+    });
+
     if (existingUser) {
       return res.status(409).json({ message: "User already exists" });
     }
@@ -40,25 +46,152 @@ export const registerUser = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const user = await User.create({
-      name,
-      email,
+      name: name.trim(),
+      email: email.trim().toLowerCase(),
       password: hashedPassword,
-      role: role || "student",
+      role: safeRole,
+      isEmailVerified: false,
+    });
+
+    const otp = user.getEmailVerificationOtp();
+
+    await user.save({ validateBeforeSave: false });
+
+    const html = `
+      <div style="font-family: Arial, sans-serif; line-height: 1.6;">
+        <h2>Verify your SkillSphere account</h2>
+        <p>Hello ${user.name},</p>
+        <p>Your email verification OTP is:</p>
+        <h1 style="letter-spacing: 4px;">${otp}</h1>
+        <p>This OTP will expire in 10 minutes.</p>
+      </div>
+    `;
+
+    await sendEmail({
+      to: user.email,
+      subject: "Verify your SkillSphere email",
+      html,
     });
 
     res.status(201).json({
-      message: "User registered successfully",
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        avatar: user.avatar,
-        learningStreak: user.learningStreak,
-      },
+      success: true,
+      message: "Registration successful. Please verify your email OTP.",
+      email: user.email,
     });
   } catch (error) {
-    res.status(500).json({ message: "Registration failed" });
+    res.status(500).json({
+      success: false,
+      message: "Registration failed",
+      error: process.env.NODE_ENV === "production" ? undefined : error.message,
+    });
+  }
+};
+
+export const verifyEmailOtp = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+
+    if (!email?.trim() || !otp?.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "Email and OTP are required",
+      });
+    }
+
+    const hashedOtp = crypto
+      .createHash("sha256")
+      .update(otp.trim())
+      .digest("hex");
+
+    const user = await User.findOne({
+      email: email.trim().toLowerCase(),
+      emailVerificationOtp: hashedOtp,
+      emailVerificationOtpExpire: { $gt: Date.now() },
+    }).select("+emailVerificationOtp +emailVerificationOtpExpire");
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid or expired OTP",
+      });
+    }
+
+    user.isEmailVerified = true;
+    user.emailVerificationOtp = undefined;
+    user.emailVerificationOtpExpire = undefined;
+
+    await user.save({ validateBeforeSave: false });
+
+    return res.status(200).json({
+      success: true,
+      message: "Email verified successfully. You can now login.",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Email verification failed",
+    });
+  }
+};
+
+export const resendEmailOtp = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email?.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "Email is required",
+      });
+    }
+
+    const user = await User.findOne({
+      email: email.trim().toLowerCase(),
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    if (user.isEmailVerified) {
+      return res.status(400).json({
+        success: false,
+        message: "Email is already verified",
+      });
+    }
+
+    const otp = user.getEmailVerificationOtp();
+
+    await user.save({ validateBeforeSave: false });
+
+    const html = `
+      <div style="font-family: Arial, sans-serif; line-height: 1.6;">
+        <h2>SkillSphere Email Verification</h2>
+        <p>Hello ${user.name},</p>
+        <p>Your new OTP is:</p>
+        <h1 style="letter-spacing: 4px;">${otp}</h1>
+        <p>This OTP will expire in 10 minutes.</p>
+      </div>
+    `;
+
+    await sendEmail({
+      to: user.email,
+      subject: "Your new SkillSphere OTP",
+      html,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "OTP resent successfully",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to resend OTP",
+    });
   }
 };
 
@@ -77,6 +210,15 @@ export const loginUser = async (req, res) => {
 
     if (!isMatch) {
       return res.status(401).json({ message: "Invalid credentials" });
+    }
+
+    if (!user.isEmailVerified) {
+      return res.status(403).json({
+        success: false,
+        message: "Please verify your email before logging in.",
+        email: user.email,
+        requiresEmailVerification: true,
+      });
     }
 
     const token = generateToken(user);
@@ -355,6 +497,24 @@ export const changePassword = async (req, res) => {
     user.passwordChangedAt = Date.now();
 
     await user.save();
+
+    try {
+      await sendEmail({
+        to: user.email,
+        subject: "Your SkillSphere password was changed",
+        html: `
+      <div style="font-family: Arial, sans-serif; line-height: 1.6;">
+        <h2>Password Changed Successfully</h2>
+        <p>Hello ${user.name},</p>
+        <p>Your SkillSphere account password was changed successfully.</p>
+        <p>If you made this change, no further action is needed.</p>
+        <p>If you did not change your password, please reset your password immediately.</p>
+      </div>
+    `,
+      });
+    } catch (emailError) {
+      console.error("Password changed email failed:", emailError.message);
+    }
 
     return res.status(200).json({
       success: true,

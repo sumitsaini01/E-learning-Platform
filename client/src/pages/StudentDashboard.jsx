@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import {
+  getRecommendedCourses,
   getSavedCourses,
   getStudentEnrolledCourses,
 } from "../services/courseService";
@@ -20,6 +21,7 @@ function StudentDashboard() {
 
   const [courses, setCourses] = useState([]);
   const [savedCourses, setSavedCourses] = useState([]);
+  const [recommendedCourses, setRecommendedCourses] = useState([]);
   const [progressMap, setProgressMap] = useState({});
   const [quizAttempts, setQuizAttempts] = useState([]);
   const [certificates, setCertificates] = useState([]);
@@ -38,12 +40,14 @@ function StudentDashboard() {
       const [
         enrolledData,
         savedData,
+        recommendedData,
         attemptsData,
         certificatesData,
         activitiesData,
       ] = await Promise.all([
         getStudentEnrolledCourses(),
         getSavedCourses(),
+        getRecommendedCourses(),
         getMyQuizAttempts(),
         getMyCertificates(),
         getMyActivities({ limit: 8 }),
@@ -67,6 +71,7 @@ function StudentDashboard() {
 
       setCourses(enrolledCourses);
       setSavedCourses(savedData.courses || []);
+      setRecommendedCourses(recommendedData.courses || []);
       setProgressMap(nextProgressMap);
       setQuizAttempts(attemptsData.attempts || []);
       setCertificates(certificatesData.certificates || []);
@@ -262,12 +267,21 @@ function StudentDashboard() {
             </p>
           </div>
 
-          <Link
-            to="/courses"
-            className="inline-flex justify-center rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800"
-          >
-            Explore Courses
-          </Link>
+          <div className="flex flex-wrap gap-3">
+            <Link
+              to="/career-roadmap"
+              className="inline-flex justify-center rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800"
+            >
+              AI Career Roadmap
+            </Link>
+
+            <Link
+              to="/courses"
+              className="inline-flex justify-center rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-800 transition hover:bg-zinc-100"
+            >
+              Explore Courses
+            </Link>
+          </div>
         </div>
       </div>
 
@@ -595,6 +609,72 @@ function StudentDashboard() {
                 </div>
               </div>
             ))
+          )}
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-zinc-950">
+              Recommended For You
+            </h2>
+            <p className="mt-1 text-sm text-zinc-500">
+              Courses suggested from your enrolled and saved courses.
+            </p>
+          </div>
+
+          <Link
+            to="/courses"
+            className="text-sm font-medium text-emerald-700 hover:text-emerald-800"
+          >
+            Explore more
+          </Link>
+        </div>
+
+        <div className="mt-5 grid gap-4 lg:grid-cols-3">
+          {recommendedCourses.length === 0 ? (
+            <p className="rounded-xl border border-dashed border-zinc-300 p-6 text-center text-sm text-zinc-600 lg:col-span-3">
+              No recommendations yet. Explore or save more courses.
+            </p>
+          ) : (
+            recommendedCourses.map((course) => {
+              const courseId = getCourseId(course);
+
+              return (
+                <div
+                  key={courseId}
+                  className="rounded-xl border border-zinc-200 bg-emerald-50/30 p-5"
+                >
+                  <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+                    Recommended
+                  </p>
+
+                  <h3 className="mt-2 line-clamp-2 font-semibold text-zinc-950">
+                    {course.title}
+                  </h3>
+
+                  <p className="mt-2 text-sm capitalize text-zinc-600">
+                    {course.category} • {course.level}
+                  </p>
+
+                  <p className="mt-3 rounded-md bg-white px-3 py-2 text-xs text-emerald-700">
+                    {course.recommendationReason}
+                  </p>
+
+                  <p className="mt-3 line-clamp-2 text-sm leading-6 text-zinc-600">
+                    {course.description}
+                  </p>
+
+                  <Link
+                    to={`/courses/${courseId}`}
+                    className="mt-5 inline-flex w-full justify-center rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800"
+                  >
+                    View Course
+                  </Link>
+                </div>
+              );
+            })
           )}
         </div>
       </div>

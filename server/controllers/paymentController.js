@@ -78,6 +78,7 @@ export const createOrder = async (req, res) => {
         title: "Course Enrollment Successful",
         message: `You successfully enrolled in ${course.title}`,
         course: course._id,
+        actionUrl: `/courses/${course._id}`,
       });
 
       await createNotification({
@@ -86,6 +87,7 @@ export const createOrder = async (req, res) => {
         title: "New Student Enrollment",
         message: `${req.user.name || "A student"} enrolled in ${course.title}`,
         course: course._id,
+        actionUrl: "/dashboard/instructor",
       });
 
       try {
@@ -266,6 +268,7 @@ export const verifyPayment = async (req, res) => {
       title: "Payment Successful",
       message: `You purchased ${course.title}`,
       course: course._id,
+      actionUrl: `/courses/${course._id}`,
     });
 
     await createNotification({
@@ -274,6 +277,7 @@ export const verifyPayment = async (req, res) => {
       title: "New Course Purchase",
       message: `${req.user.name || "A student"} purchased ${course.title}`,
       course: course._id,
+      actionUrl: "/dashboard/instructor",
     });
 
     try {

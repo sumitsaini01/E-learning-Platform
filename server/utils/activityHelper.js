@@ -34,6 +34,7 @@ export const createNotification = async ({
   message,
   course = null,
   quiz = null,
+  actionUrl = "",
   metadata = {},
 }) => {
   try {
@@ -44,12 +45,10 @@ export const createNotification = async ({
       message,
       course,
       quiz,
+      actionUrl,
       metadata,
     });
   } catch (error) {
-    console.error(
-      "Create notification error:",
-      error.message,
-    );
+    console.error("Create notification error:", error.message);
   }
 };

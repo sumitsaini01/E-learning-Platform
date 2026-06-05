@@ -803,6 +803,7 @@ export const submitQuizAttempt = async (req, res) => {
       message: `${req.user.name} attempted quiz ${quiz.title}`,
       course: course._id,
       quiz: quiz._id,
+      actionUrl: "/instructor/quizzes",
     });
 
     const review = quiz.questions.map((question) => {

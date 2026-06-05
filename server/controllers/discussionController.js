@@ -93,6 +93,7 @@ export const createDiscussion = async (req, res) => {
         title: "New Course Discussion",
         message: `${req.user.name || "A student"} asked a question in ${course.title}`,
         course: course._id,
+        actionUrl: `/courses/${course._id}`,
       });
     }
 
@@ -155,6 +156,7 @@ export const replyToDiscussion = async (req, res) => {
         title: "New Reply to Your Discussion",
         message: `${req.user.name || "Someone"} replied to your question in ${course.title}`,
         course: course._id,
+        actionUrl: `/courses/${course._id}`,
       });
     }
 

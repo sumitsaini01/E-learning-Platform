@@ -35,6 +35,12 @@ const notificationSchema = new mongoose.Schema(
       trim: true,
     },
 
+    actionUrl: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
     read: {
       type: Boolean,
       default: false,
@@ -67,9 +73,6 @@ notificationSchema.index({
   createdAt: -1,
 });
 
-const Notification = mongoose.model(
-  "Notification",
-  notificationSchema,
-);
+const Notification = mongoose.model("Notification", notificationSchema);
 
 export default Notification;

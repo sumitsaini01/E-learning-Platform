@@ -168,9 +168,10 @@ export const generateCertificate = async (req, res) => {
     await createNotification({
       recipient: req.user._id,
       type: "certificate_generated",
-      title: "Certificate Ready",
-      message: `Certificate generated for ${eligibility.course.title}`,
+      title: "Certificate is ready",
+      message: `Your certificate for ${eligibility.course.title} is ready. Open it from My Certificates.`,
       course: eligibility.course._id,
+      actionUrl: "/my-certificates",
     });
 
     try {

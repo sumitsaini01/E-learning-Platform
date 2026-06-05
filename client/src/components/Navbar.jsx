@@ -90,22 +90,28 @@ function Navbar() {
     }
   };
 
-  const handleNotificationClick = async (notificationId) => {
+  const handleNotificationClick = async (notification) => {
     try {
-      await markNotificationAsRead(notificationId);
+      await markNotificationAsRead(notification._id);
 
       setNotifications((current) =>
-        current.map((notification) =>
-          notification._id === notificationId
+        current.map((item) =>
+          item._id === notification._id
             ? {
-                ...notification,
+                ...item,
                 read: true,
               }
-            : notification,
+            : item,
         ),
       );
+
+      setNotificationOpen(false);
+
+      if (notification.actionUrl) {
+        navigate(notification.actionUrl);
+      }
     } catch (error) {
-      console.error("Failed to mark notification as read", error);
+      console.error("Failed to open notification", error);
     }
   };
 
@@ -289,7 +295,7 @@ function Navbar() {
                             key={notification._id}
                             type="button"
                             onClick={() =>
-                              handleNotificationClick(notification._id)
+                              handleNotificationClick(notification)
                             }
                             className={`w-full border-b border-zinc-100 px-4 py-4 text-left transition hover:bg-zinc-50 ${
                               notification.read

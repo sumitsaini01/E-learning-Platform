@@ -7,6 +7,7 @@ import {
   getCourseQuizzes,
   getInstructorQuizzes,
   getMyQuizAttempts,
+  getQuizAnalytics,
   getQuizById,
   startQuizAttempt,
   submitQuizAttempt,
@@ -16,6 +17,12 @@ import {
 import { authorizeRoles, protect } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
+
+/*
+|--------------------------------------------------------------------------
+| Instructor Quiz Management
+|--------------------------------------------------------------------------
+*/
 
 router.post("/", protect, authorizeRoles("instructor", "admin"), createQuiz);
 
@@ -34,6 +41,19 @@ router.get(
 );
 
 router.get(
+  "/:quizId/analytics",
+  protect,
+  authorizeRoles("instructor", "admin"),
+  getQuizAnalytics,
+);
+
+/*
+|--------------------------------------------------------------------------
+| Student Quiz Lists
+|--------------------------------------------------------------------------
+*/
+
+router.get(
   "/course/:courseId",
   protect,
   authorizeRoles("student", "instructor", "admin"),
@@ -47,12 +67,31 @@ router.get(
   getMyQuizAttempts,
 );
 
+/*
+|--------------------------------------------------------------------------
+| Quiz Attempt Flow
+|--------------------------------------------------------------------------
+*/
+
 router.post(
   "/:quizId/start",
   protect,
   authorizeRoles("student"),
   startQuizAttempt,
 );
+
+router.post(
+  "/:quizId/attempt",
+  protect,
+  authorizeRoles("student"),
+  submitQuizAttempt,
+);
+
+/*
+|--------------------------------------------------------------------------
+| Single Quiz Operations
+|--------------------------------------------------------------------------
+*/
 
 router.get(
   "/:quizId",
@@ -73,13 +112,6 @@ router.delete(
   protect,
   authorizeRoles("instructor", "admin"),
   deleteQuiz,
-);
-
-router.post(
-  "/:quizId/attempt",
-  protect,
-  authorizeRoles("student"),
-  submitQuizAttempt,
 );
 
 export default router;

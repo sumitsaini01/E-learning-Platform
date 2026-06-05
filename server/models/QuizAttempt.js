@@ -28,6 +28,23 @@ const answerSchema = new mongoose.Schema(
   },
 );
 
+const attemptQuestionSchema = new mongoose.Schema(
+  {
+    questionId: {
+      type: String,
+      required: true,
+    },
+
+    order: {
+      type: Number,
+      required: true,
+    },
+  },
+  {
+    _id: false,
+  },
+);
+
 const quizAttemptSchema = new mongoose.Schema(
   {
     quiz: {
@@ -50,6 +67,11 @@ const quizAttemptSchema = new mongoose.Schema(
 
     answers: {
       type: [answerSchema],
+      default: [],
+    },
+
+    questionOrder: {
+      type: [attemptQuestionSchema],
       default: [],
     },
 

@@ -103,3 +103,13 @@ export const getMyQuizAttempts = async () => {
 
   return response.data;
 };
+
+export const getQuizAnalytics = async (quizId) => {
+  if (!quizId) {
+    throw new Error("Quiz ID is required");
+  }
+
+  const response = await api.get(`/quizzes/${quizId}/analytics`);
+
+  return response.data;
+};

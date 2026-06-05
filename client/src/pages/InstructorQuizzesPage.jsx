@@ -6,6 +6,7 @@ import {
   deleteQuiz,
   generateAIQuiz,
   getInstructorQuizzes,
+  getQuizAnalytics,
   updateQuiz,
 } from "../services/quizService";
 
@@ -51,6 +52,8 @@ function InstructorQuizzesPage() {
   const [isSaving, setIsSaving] = useState(false);
 
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+  const [analytics, setAnalytics] = useState(null);
+  const [isLoadingAnalytics, setIsLoadingAnalytics] = useState(false);
 
   const [aiForm, setAiForm] = useState({
     topic: "",
@@ -410,6 +413,22 @@ function InstructorQuizzesPage() {
       await loadPageData();
     } catch (err) {
       setError(err.response?.data?.message || "Unable to update quiz status.");
+    }
+  };
+
+  const handleViewAnalytics = async (quizId) => {
+    try {
+      setError("");
+      setSuccess("");
+      setIsLoadingAnalytics(true);
+
+      const data = await getQuizAnalytics(quizId);
+
+      setAnalytics(data.analytics);
+    } catch (err) {
+      setError(err.response?.data?.message || "Unable to load quiz analytics.");
+    } finally {
+      setIsLoadingAnalytics(false);
     }
   };
 
@@ -935,6 +954,118 @@ function InstructorQuizzesPage() {
         </button>
       </form>
 
+      {analytics ? (
+        <div className="rounded-lg border border-purple-200 bg-white p-6 shadow-sm">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium uppercase tracking-wide text-purple-700">
+                Quiz Analytics
+              </p>
+
+              <h2 className="mt-2 text-2xl font-semibold text-zinc-950">
+                {analytics.quizTitle}
+              </h2>
+
+              <p className="mt-1 text-sm text-zinc-600">
+                Course: {analytics.courseTitle}
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setAnalytics(null)}
+              className="rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm font-semibold text-zinc-800 transition hover:bg-zinc-100"
+            >
+              Close
+            </button>
+          </div>
+
+          {isLoadingAnalytics ? (
+            <p className="mt-5 text-sm text-zinc-500">Loading analytics...</p>
+          ) : (
+            <>
+              <div className="mt-6 grid gap-4 sm:grid-cols-5">
+                <AnalyticsCard
+                  label="Attempts"
+                  value={analytics.totalAttempts}
+                />
+                <AnalyticsCard label="Passed" value={analytics.passed} />
+                <AnalyticsCard label="Failed" value={analytics.failed} />
+                <AnalyticsCard
+                  label="Average"
+                  value={`${analytics.averageScore}%`}
+                />
+                <AnalyticsCard
+                  label="Pass Rate"
+                  value={`${analytics.passRate}%`}
+                />
+              </div>
+
+              {analytics.mostMissedQuestion ? (
+                <div className="mt-6 rounded-lg border border-amber-200 bg-amber-50 p-4">
+                  <h3 className="font-semibold text-zinc-950">
+                    Most Missed Question
+                  </h3>
+
+                  <p className="mt-2 text-sm text-zinc-700">
+                    {analytics.mostMissedQuestion.questionText}
+                  </p>
+
+                  <p className="mt-2 text-sm font-medium text-amber-800">
+                    Missed {analytics.mostMissedQuestion.missedCount} times
+                  </p>
+                </div>
+              ) : null}
+
+              {analytics.recentAttempts?.length ? (
+                <div className="mt-6">
+                  <h3 className="font-semibold text-zinc-950">
+                    Recent Attempts
+                  </h3>
+
+                  <div className="mt-3 overflow-x-auto">
+                    <table className="min-w-full text-left text-sm">
+                      <thead className="border-b border-zinc-200 text-zinc-500">
+                        <tr>
+                          <th className="py-2 pr-4">Student</th>
+                          <th className="py-2 pr-4">Score</th>
+                          <th className="py-2 pr-4">Result</th>
+                          <th className="py-2 pr-4">Submitted</th>
+                        </tr>
+                      </thead>
+
+                      <tbody>
+                        {analytics.recentAttempts.map((attempt) => (
+                          <tr
+                            key={attempt.attemptId}
+                            className="border-b border-zinc-100"
+                          >
+                            <td className="py-2 pr-4">
+                              {attempt.student?.name ||
+                                attempt.student?.email ||
+                                "Student"}
+                            </td>
+                            <td className="py-2 pr-4">{attempt.percentage}%</td>
+                            <td className="py-2 pr-4">
+                              {attempt.passed ? "Passed" : "Failed"}
+                            </td>
+                            <td className="py-2 pr-4">
+                              {attempt.submittedAt
+                                ? new Date(attempt.submittedAt).toLocaleString()
+                                : "-"}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ) : null}
+            </>
+          )}
+        </div>
+      ) : null}
+
       <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
         <h2 className="text-xl font-semibold text-zinc-950">Your Quizzes</h2>
 
@@ -991,6 +1122,14 @@ function InstructorQuizzesPage() {
 
                     <button
                       type="button"
+                      onClick={() => handleViewAnalytics(quiz._id)}
+                      className="rounded-md bg-purple-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-purple-700"
+                    >
+                      Analytics
+                    </button>
+
+                    <button
+                      type="button"
                       onClick={() => handleToggleStatus(quiz)}
                       className="rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
                     >
@@ -1012,6 +1151,18 @@ function InstructorQuizzesPage() {
         </div>
       </div>
     </section>
+  );
+}
+
+function AnalyticsCard({ label, value }) {
+  return (
+    <div className="rounded-lg border border-zinc-200 bg-stone-50 p-4">
+      <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+        {label}
+      </p>
+
+      <p className="mt-2 text-2xl font-semibold text-zinc-950">{value}</p>
+    </div>
   );
 }
 

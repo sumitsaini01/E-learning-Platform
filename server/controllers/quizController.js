@@ -136,6 +136,19 @@ const shuffleOptionsAndCorrectIndex = (question) => {
   };
 };
 
+const shuffleQuestionOrder = (questions = []) => {
+  return [...questions]
+    .map((question) => ({
+      questionId: question._id.toString(),
+      sort: Math.random(),
+    }))
+    .sort((a, b) => a.sort - b.sort)
+    .map((item, index) => ({
+      questionId: item.questionId,
+      order: index + 1,
+    }));
+};
+
 const prepareQuestionsForSave = (questions = []) => {
   return questions.map((question) =>
     shuffleOptionsAndCorrectIndex({
@@ -249,6 +262,113 @@ export const getInstructorQuizzes = async (req, res) => {
   }
 };
 
+export const getQuizAnalytics = async (req, res) => {
+  try {
+    const { quizId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(quizId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid quiz id",
+      });
+    }
+
+    const quiz = await Quiz.findById(quizId).populate("course");
+
+    if (!quiz) {
+      return res.status(404).json({
+        success: false,
+        message: "Quiz not found",
+      });
+    }
+
+    const ownershipError = validateCourseOwnership(quiz.course, req.user);
+
+    if (ownershipError) {
+      return res.status(ownershipError.status).json({
+        success: false,
+        message: ownershipError.message,
+      });
+    }
+
+    const attempts = await QuizAttempt.find({
+      quiz: quizId,
+      status: "submitted",
+    })
+      .populate("user", "name email")
+      .sort({ submittedAt: -1 });
+
+    const totalAttempts = attempts.length;
+    const passed = attempts.filter((attempt) => attempt.passed).length;
+    const failed = totalAttempts - passed;
+
+    const averageScore =
+      totalAttempts === 0
+        ? 0
+        : Math.round(
+            attempts.reduce(
+              (sum, attempt) => sum + Number(attempt.percentage || 0),
+              0,
+            ) / totalAttempts,
+          );
+
+    const missedMap = {};
+
+    quiz.questions.forEach((question) => {
+      missedMap[question._id.toString()] = {
+        questionId: question._id.toString(),
+        questionText: question.questionText,
+        missedCount: 0,
+      };
+    });
+
+    attempts.forEach((attempt) => {
+      attempt.answers.forEach((answer) => {
+        if (!answer.isCorrect && missedMap[answer.questionId]) {
+          missedMap[answer.questionId].missedCount += 1;
+        }
+      });
+    });
+
+    const missedQuestions = Object.values(missedMap).sort(
+      (a, b) => b.missedCount - a.missedCount,
+    );
+
+    const mostMissedQuestion =
+      missedQuestions.length > 0 && missedQuestions[0].missedCount > 0
+        ? missedQuestions[0]
+        : null;
+
+    return res.status(200).json({
+      success: true,
+      analytics: {
+        quizId: quiz._id,
+        quizTitle: quiz.title,
+        courseTitle: quiz.course?.title || "",
+        totalAttempts,
+        passed,
+        failed,
+        averageScore,
+        passRate:
+          totalAttempts === 0 ? 0 : Math.round((passed / totalAttempts) * 100),
+        mostMissedQuestion,
+        missedQuestions,
+        recentAttempts: attempts.slice(0, 10).map((attempt) => ({
+          attemptId: attempt._id,
+          student: attempt.user,
+          score: attempt.score,
+          totalPoints: attempt.totalPoints,
+          percentage: attempt.percentage,
+          passed: attempt.passed,
+          submittedAt: attempt.submittedAt,
+        })),
+      },
+    });
+  } catch (error) {
+    return sendServerError(res, "Failed to fetch quiz analytics", error);
+  }
+};
+
 export const getCourseQuizzes = async (req, res) => {
   try {
     const { courseId } = req.params;
@@ -335,9 +455,40 @@ export const getQuizById = async (req, res) => {
       });
     }
 
+    if (req.user.role === "student") {
+      const activeAttempt = await QuizAttempt.findOne({
+        quiz: quizId,
+        user: req.user._id,
+        status: "in_progress",
+      });
+
+      let safeQuiz = removeCorrectAnswers(quiz);
+
+      if (activeAttempt?.questionOrder?.length) {
+        const orderMap = new Map(
+          activeAttempt.questionOrder.map((item) => [
+            item.questionId,
+            item.order,
+          ]),
+        );
+
+        safeQuiz.questions = safeQuiz.questions
+          .filter((question) => orderMap.has(question._id.toString()))
+          .sort(
+            (a, b) =>
+              orderMap.get(a._id.toString()) - orderMap.get(b._id.toString()),
+          );
+      }
+
+      return res.status(200).json({
+        success: true,
+        quiz: safeQuiz,
+      });
+    }
+
     return res.status(200).json({
       success: true,
-      quiz: req.user.role === "student" ? removeCorrectAnswers(quiz) : quiz,
+      quiz,
     });
   } catch (error) {
     return sendServerError(res, "Failed to fetch quiz", error);
@@ -507,11 +658,14 @@ export const startQuizAttempt = async (req, res) => {
         ? new Date(now.getTime() + quiz.timeLimitMinutes * 60 * 1000)
         : null;
 
+    const questionOrder = shuffleQuestionOrder(quiz.questions);
+
     const attempt = await QuizAttempt.create({
       quiz: quizId,
       course: quiz.course,
       user: req.user._id,
       attemptNumber: previousAttempts + 1,
+      questionOrder,
       startedAt: now,
       expiresAt,
       status: "in_progress",

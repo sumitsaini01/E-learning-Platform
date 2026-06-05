@@ -283,6 +283,48 @@ function StudentDashboard() {
             </Link>
 
             <Link
+              to="/learning-path"
+              className="inline-flex justify-center rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-800 transition hover:bg-zinc-100"
+            >
+              Learning Path
+            </Link>
+
+            <Link
+              to="/interview-prep"
+              className="inline-flex justify-center rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-800 transition hover:bg-zinc-100"
+            >
+              Interview Prep
+            </Link>
+
+            <Link
+              to="/mock-interview"
+              className="inline-flex justify-center rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-800 transition hover:bg-zinc-100"
+            >
+              Mock Interview
+            </Link>
+
+            <Link
+              to="/job-readiness"
+              className="inline-flex justify-center rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-800 transition hover:bg-zinc-100"
+            >
+              Job Readiness
+            </Link>
+
+            <Link
+              to="/resume-analyzer"
+              className="inline-flex justify-center rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-800 transition hover:bg-zinc-100"
+            >
+              Resume Analyzer
+            </Link>
+
+            <Link
+              to="/study-planner"
+              className="inline-flex justify-center rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-800 transition hover:bg-zinc-100"
+            >
+              Study Planner
+            </Link>
+
+            <Link
               to="/courses"
               className="inline-flex justify-center rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-800 transition hover:bg-zinc-100"
             >

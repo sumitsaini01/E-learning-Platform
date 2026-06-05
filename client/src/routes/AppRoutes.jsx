@@ -22,6 +22,12 @@ import AdminDashboardPage from "../pages/AdminDashboardPage";
 import VerifyEmailPage from "../pages/VerifyEmailPage";
 import CareerRoadmapPage from "../pages/CareerRoadmapPage";
 import SkillTrackingPage from "../pages/SkillTrackingPage";
+import LearningPathPage from "../pages/LearningPathPage";
+import InterviewPrepPage from "../pages/InterviewPrepPage";
+import MockInterviewPage from "../pages/MockInterviewPage";
+import JobReadinessPage from "../pages/JobReadinessPage";
+import ResumeAnalyzerPage from "../pages/ResumeAnalyzerPage";
+import StudyPlannerPage from "../pages/StudyPlannerPage";
 
 function AppRoutes() {
   return (
@@ -50,6 +56,18 @@ function AppRoutes() {
           <Route path="career-roadmap" element={<CareerRoadmapPage />} />
 
           <Route path="skills" element={<SkillTrackingPage />} />
+
+          <Route path="learning-path" element={<LearningPathPage />} />
+
+          <Route path="interview-prep" element={<InterviewPrepPage />} />
+
+          <Route path="mock-interview" element={<MockInterviewPage />} />
+
+          <Route path="job-readiness" element={<JobReadinessPage />} />
+
+          <Route path="resume-analyzer" element={<ResumeAnalyzerPage />} />
+
+          <Route path="study-planner" element={<StudyPlannerPage />} />
         </Route>
 
         <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>

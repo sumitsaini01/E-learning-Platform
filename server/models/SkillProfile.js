@@ -61,8 +61,6 @@ const skillProfileSchema = new mongoose.Schema(
   },
 );
 
-skillProfileSchema.index({ user: 1 });
-
 const SkillProfile = mongoose.model("SkillProfile", skillProfileSchema);
 
 export default SkillProfile;

@@ -18,6 +18,12 @@ import noteRoutes from "./routes/noteRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import careerRoadmapRoutes from "./routes/careerRoadmapRoutes.js";
 import skillTrackingRoutes from "./routes/skillTrackingRoutes.js";
+import learningPathRoutes from "./routes/learningPathRoutes.js";
+import interviewPrepRoutes from "./routes/interviewPrepRoutes.js";
+import mockInterviewRoutes from "./routes/mockInterviewRoutes.js";
+import jobReadinessRoutes from "./routes/jobReadinessRoutes.js";
+import resumeAnalysisRoutes from "./routes/resumeAnalysisRoutes.js";
+import studyPlannerRoutes from "./routes/studyPlannerRoutes.js";
 
 const PORT = process.env.PORT || 5000;
 
@@ -40,7 +46,13 @@ const startServer = async () => {
     app.use("/api/admin", adminRoutes);
     app.use("/api/career-roadmaps", careerRoadmapRoutes);
     app.use("/api/skills", skillTrackingRoutes);
-    
+    app.use("/api/learning-paths", learningPathRoutes);
+    app.use("/api/interview-prep", interviewPrepRoutes);
+    app.use("/api/mock-interviews", mockInterviewRoutes);
+    app.use("/api/job-readiness", jobReadinessRoutes);
+    app.use("/api/resume-analysis", resumeAnalysisRoutes);
+    app.use("/api/study-plans", studyPlannerRoutes);
+
     app.use(notFound);
     app.use(errorHandler);
 

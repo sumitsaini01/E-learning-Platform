@@ -161,6 +161,8 @@ function CourseDetailsPage() {
 
   const [replyForms, setReplyForms] = useState({});
 
+  const [discussionFilter, setDiscussionFilter] = useState("all");
+
   const [editReviewForm, setEditReviewForm] = useState({
     rating: 5,
     comment: "",
@@ -776,7 +778,7 @@ function CourseDetailsPage() {
         message: "",
       });
 
-      setDiscussionMessage("Question posted successfully.");
+      setDiscussionMessage("Discussion posted successfully.");
       await loadDiscussions();
     } catch (err) {
       setDiscussionError(
@@ -991,6 +993,11 @@ function CourseDetailsPage() {
   const studentCount = course.students?.length || 0;
   const sections = course.sections || [];
   const reviews = course.reviews || [];
+  const filteredDiscussions = discussions.filter((discussion) => {
+    if (discussionFilter === "open") return !discussion.isResolved;
+    if (discussionFilter === "resolved") return discussion.isResolved;
+    return true;
+  });
 
   const isActiveLessonCompleted =
     activeLesson?._id && completedLessons.includes(activeLesson._id);
@@ -1682,17 +1689,34 @@ function CourseDetailsPage() {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h2 className="text-xl font-semibold text-zinc-950">
-              Course Discussion / Q&A
+              Course Community
             </h2>
             <p className="mt-1 text-sm text-zinc-600">
-              Ask questions, reply to classmates, and get help from the
-              instructor.
+              Discuss lessons, ask doubts, share ideas, and help other learners
+              in this course.
             </p>
           </div>
 
           <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800">
-            {discussions.length} questions
+            {discussions.length} discussions
           </span>
+        </div>
+
+        <div className="mt-5 flex flex-wrap gap-2">
+          {["all", "open", "resolved"].map((filter) => (
+            <button
+              key={filter}
+              type="button"
+              onClick={() => setDiscussionFilter(filter)}
+              className={`rounded-full px-3 py-1 text-xs font-semibold capitalize transition ${
+                discussionFilter === filter
+                  ? "bg-emerald-700 text-white"
+                  : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200"
+              }`}
+            >
+              {filter}
+            </button>
+          ))}
         </div>
 
         {discussionError ? (
@@ -1712,7 +1736,7 @@ function CourseDetailsPage() {
             onSubmit={handleSubmitDiscussion}
             className="mt-5 rounded-xl border border-emerald-100 bg-emerald-50/40 p-5"
           >
-            <h3 className="font-semibold text-zinc-950">Ask a question</h3>
+            <h3 className="font-semibold text-zinc-950">Start a discussion</h3>
 
             <input
               type="text"
@@ -1743,7 +1767,7 @@ function CourseDetailsPage() {
               type="submit"
               className="mt-4 rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800"
             >
-              Post Question
+              Post Discussion
             </button>
           </form>
         ) : (
@@ -1753,12 +1777,12 @@ function CourseDetailsPage() {
         )}
 
         <div className="mt-6 space-y-5">
-          {discussions.length === 0 ? (
+          {filteredDiscussions.length === 0 ? (
             <p className="rounded-md bg-stone-50 p-4 text-sm text-zinc-600">
-              No questions yet. Start the discussion.
+              No discussions found. Start the community conversation.
             </p>
           ) : (
-            discussions.map((discussion) => {
+            filteredDiscussions.map((discussion) => {
               const canMarkResolved =
                 getUserId(discussion.user) === studentId ||
                 user?.role === "instructor" ||
@@ -1785,6 +1809,9 @@ function CourseDetailsPage() {
                             Open
                           </span>
                         )}
+                        <span className="rounded-full bg-zinc-100 px-2 py-1 text-xs font-semibold text-zinc-700">
+                          {discussion.replies?.length || 0} replies
+                        </span>
                       </div>
 
                       <p className="mt-1 text-xs text-zinc-500">

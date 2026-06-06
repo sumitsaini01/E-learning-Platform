@@ -1,29 +1,79 @@
 import express from "express";
 
 import {
+  deleteAdminCourse,
+  deleteAdminUser,
+  getAdminCertificateAnalytics,
+  getAdminCourseAnalytics,
   getAdminCourses,
   getAdminDashboard,
+  getAdminEnrollmentAnalytics,
+  getAdminPlatformMonitoring,
+  getAdminQuizAnalytics,
+  getAdminRevenueAnalytics,
+  getAdminUserAnalytics,
   getAdminUsers,
+  updateAdminCourseStatus,
   updateUserRole,
+  updateUserVerificationStatus,
 } from "../controllers/adminController.js";
 
 import { authorizeRoles, protect } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
+router.get("/dashboard", protect, authorizeRoles("admin"), getAdminDashboard);
+
 router.get(
-  "/dashboard",
+  "/analytics/users",
   protect,
   authorizeRoles("admin"),
-  getAdminDashboard,
+  getAdminUserAnalytics,
 );
 
 router.get(
-  "/users",
+  "/analytics/courses",
   protect,
   authorizeRoles("admin"),
-  getAdminUsers,
+  getAdminCourseAnalytics,
 );
+
+router.get(
+  "/analytics/revenue",
+  protect,
+  authorizeRoles("admin"),
+  getAdminRevenueAnalytics,
+);
+
+router.get(
+  "/analytics/enrollments",
+  protect,
+  authorizeRoles("admin"),
+  getAdminEnrollmentAnalytics,
+);
+
+router.get(
+  "/analytics/quizzes",
+  protect,
+  authorizeRoles("admin"),
+  getAdminQuizAnalytics,
+);
+
+router.get(
+  "/analytics/certificates",
+  protect,
+  authorizeRoles("admin"),
+  getAdminCertificateAnalytics,
+);
+
+router.get(
+  "/monitoring",
+  protect,
+  authorizeRoles("admin"),
+  getAdminPlatformMonitoring,
+);
+
+router.get("/users", protect, authorizeRoles("admin"), getAdminUsers);
 
 router.patch(
   "/users/:userId/role",
@@ -32,11 +82,34 @@ router.patch(
   updateUserRole,
 );
 
-router.get(
-  "/courses",
+router.patch(
+  "/users/:userId/verification",
   protect,
   authorizeRoles("admin"),
-  getAdminCourses,
+  updateUserVerificationStatus,
+);
+
+router.delete(
+  "/users/:userId",
+  protect,
+  authorizeRoles("admin"),
+  deleteAdminUser,
+);
+
+router.get("/courses", protect, authorizeRoles("admin"), getAdminCourses);
+
+router.patch(
+  "/courses/:courseId/status",
+  protect,
+  authorizeRoles("admin"),
+  updateAdminCourseStatus,
+);
+
+router.delete(
+  "/courses/:courseId",
+  protect,
+  authorizeRoles("admin"),
+  deleteAdminCourse,
 );
 
 export default router;

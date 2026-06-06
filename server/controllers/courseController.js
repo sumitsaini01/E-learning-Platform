@@ -731,20 +731,28 @@ export const getInstructorAnalytics = async (req, res) => {
     })
       .populate("quiz", "title")
       .populate("course", "title")
+      .populate("user", "name email")
       .sort({ submittedAt: -1 });
 
     const totalCourses = courses.length;
+
     const publishedCourses = courses.filter(
       (course) => course.status === "published",
     ).length;
+
     const draftCourses = courses.filter(
       (course) => course.status === "draft",
     ).length;
 
-    const totalStudents = courses.reduce(
-      (total, course) => total + course.students.length,
-      0,
+    const allStudentIds = courses.flatMap((course) =>
+      course.students.map((studentId) => studentId.toString()),
     );
+
+    const uniqueStudentIds = [...new Set(allStudentIds)];
+
+    const totalStudents = uniqueStudentIds.length;
+
+    const totalEnrollments = allStudentIds.length;
 
     const totalRevenue = courses.reduce(
       (total, course) =>
@@ -826,6 +834,14 @@ export const getInstructorAnalytics = async (req, res) => {
       totalAttempts: quizAttempts.length,
       passedAttempts: quizAttempts.filter((attempt) => attempt.passed).length,
       failedAttempts: quizAttempts.filter((attempt) => !attempt.passed).length,
+      passRate:
+        quizAttempts.length === 0
+          ? 0
+          : Math.round(
+              (quizAttempts.filter((attempt) => attempt.passed).length /
+                quizAttempts.length) *
+                100,
+            ),
       averageScore:
         quizAttempts.length === 0
           ? 0
@@ -837,8 +853,55 @@ export const getInstructorAnalytics = async (req, res) => {
             ),
     };
 
-    const recentQuizAttempts = quizAttempts.slice(0, 5).map((attempt) => ({
+    const studentPerformanceMap = {};
+
+    quizAttempts.forEach((attempt) => {
+      const studentId = attempt.user?._id?.toString();
+
+      if (!studentId) return;
+
+      if (!studentPerformanceMap[studentId]) {
+        studentPerformanceMap[studentId] = {
+          student: attempt.user,
+          attempts: 0,
+          passed: 0,
+          failed: 0,
+          totalScore: 0,
+          coursesAttempted: new Set(),
+        };
+      }
+
+      studentPerformanceMap[studentId].attempts += 1;
+      studentPerformanceMap[studentId].totalScore += Number(
+        attempt.percentage || 0,
+      );
+      studentPerformanceMap[studentId].coursesAttempted.add(
+        attempt.course?._id?.toString(),
+      );
+
+      if (attempt.passed) {
+        studentPerformanceMap[studentId].passed += 1;
+      } else {
+        studentPerformanceMap[studentId].failed += 1;
+      }
+    });
+
+    const studentAnalytics = Object.values(studentPerformanceMap)
+      .map((item) => ({
+        student: item.student,
+        attempts: item.attempts,
+        passed: item.passed,
+        failed: item.failed,
+        averageScore:
+          item.attempts === 0 ? 0 : Math.round(item.totalScore / item.attempts),
+        coursesAttempted: item.coursesAttempted.size,
+      }))
+      .sort((a, b) => b.averageScore - a.averageScore)
+      .slice(0, 10);
+
+    const recentQuizAttempts = quizAttempts.slice(0, 8).map((attempt) => ({
       id: attempt._id,
+      student: attempt.user,
       quizTitle: attempt.quiz?.title || "Quiz",
       courseTitle: attempt.course?.title || "Course",
       score: attempt.score,
@@ -855,6 +918,7 @@ export const getInstructorAnalytics = async (req, res) => {
         publishedCourses,
         draftCourses,
         totalStudents,
+        totalEnrollments,
         totalRevenue,
         totalReviews,
         averageRating,
@@ -862,6 +926,7 @@ export const getInstructorAnalytics = async (req, res) => {
       topCourse,
       coursePerformance,
       quizAnalytics,
+      studentAnalytics,
       recentQuizAttempts,
     });
   } catch (error) {

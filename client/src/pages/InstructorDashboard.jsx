@@ -284,7 +284,7 @@ function InstructorDashboard() {
         </div>
       ) : null}
 
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-5">
         <div className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
           <p className="text-sm text-zinc-500">Total Courses</p>
           <p className="mt-2 text-2xl font-semibold text-zinc-950">
@@ -300,6 +300,13 @@ function InstructorDashboard() {
           <p className="text-sm text-zinc-500">Students</p>
           <p className="mt-2 text-2xl font-semibold text-zinc-950">
             {analytics?.summary?.totalStudents || 0}
+          </p>
+        </div>
+
+        <div className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
+          <p className="text-sm text-zinc-500">Enrollments</p>
+          <p className="mt-2 text-2xl font-semibold text-zinc-950">
+            {analytics?.summary?.totalEnrollments || 0}
           </p>
         </div>
 
@@ -409,6 +416,69 @@ function InstructorDashboard() {
 
       <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold text-zinc-950">
+          Student Analytics
+        </h2>
+
+        <div className="mt-5 overflow-x-auto">
+          <table className="w-full min-w-[720px] text-left text-sm">
+            <thead>
+              <tr className="border-b border-zinc-200 text-zinc-500">
+                <th className="py-3 pr-4 font-medium">Student</th>
+                <th className="py-3 pr-4 font-medium">Attempts</th>
+                <th className="py-3 pr-4 font-medium">Passed</th>
+                <th className="py-3 pr-4 font-medium">Failed</th>
+                <th className="py-3 pr-4 font-medium">Avg Score</th>
+                <th className="py-3 pr-4 font-medium">Courses Attempted</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {(analytics?.studentAnalytics || []).length === 0 ? (
+                <tr>
+                  <td colSpan="6" className="py-5 text-center text-zinc-500">
+                    No student quiz analytics yet.
+                  </td>
+                </tr>
+              ) : (
+                analytics.studentAnalytics.map((item) => (
+                  <tr
+                    key={item.student?._id}
+                    className="border-b border-zinc-100"
+                  >
+                    <td className="py-3 pr-4">
+                      <p className="font-medium text-zinc-950">
+                        {item.student?.name || "Student"}
+                      </p>
+                      <p className="text-xs text-zinc-500">
+                        {item.student?.email}
+                      </p>
+                    </td>
+
+                    <td className="py-3 pr-4 text-zinc-700">{item.attempts}</td>
+
+                    <td className="py-3 pr-4 text-emerald-700">
+                      {item.passed}
+                    </td>
+
+                    <td className="py-3 pr-4 text-red-700">{item.failed}</td>
+
+                    <td className="py-3 pr-4 font-semibold text-zinc-950">
+                      {item.averageScore}%
+                    </td>
+
+                    <td className="py-3 pr-4 text-zinc-700">
+                      {item.coursesAttempted}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
+        <h2 className="text-lg font-semibold text-zinc-950">
           Course Performance
         </h2>
 
@@ -484,7 +554,8 @@ function InstructorDashboard() {
                     {attempt.quizTitle}
                   </p>
                   <p className="mt-1 text-sm text-zinc-600">
-                    {attempt.courseTitle} • {attempt.percentage}% •{" "}
+                    {attempt.student?.name || "Student"} • {attempt.courseTitle}{" "}
+                    • {attempt.percentage}% •{" "}
                     {attempt.passed ? "Passed" : "Failed"}
                   </p>
                 </div>

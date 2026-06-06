@@ -18,6 +18,8 @@ const notificationSchema = new mongoose.Schema(
         "certificate_generated",
         "new_student_enrolled",
         "review_added",
+        "course_discussion",
+        "discussion_reply",
         "system",
       ],
       required: true,

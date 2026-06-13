@@ -40,7 +40,7 @@ import StudyPlannerPage from "../pages/StudyPlannerPage";
 import UnauthorizedPage from "../pages/UnauthorizedPage";
 import VerifyEmailPage from "../pages/VerifyEmailPage";
 import AIFeaturesPage from "../pages/AIFeaturesPage";
-
+import AdminSecurityDashboardPage from "../pages/AdminSecurityDashboardPage";
 import AdminAnalyticsPage from "../components/admin/AdminAnalyticsPage";
 import AdminCoursesPage from "../components/admin/AdminCoursesPage";
 import AdminMonitoringPage from "../components/admin/AdminMonitoringPage";
@@ -75,6 +75,15 @@ function AppRoutes() {
         <Route path="verify-email" element={<VerifyEmailPage />} />
         <Route path="forgot-password" element={<ForgotPasswordPage />} />
         <Route path="reset-password/:token" element={<ResetPasswordPage />} />
+
+        <Route
+          path="/admin/security"
+          element={
+            <ProtectedRoute allowedRoles={["admin"]}>
+              <AdminSecurityDashboardPage />
+            </ProtectedRoute>
+          }
+        />
 
         <Route
           path="certificates/verify/:certificateId"

@@ -4,12 +4,98 @@ import crypto from "crypto";
 import User from "../models/User.js";
 import sendEmail from "../utils/sendEmail.js";
 import cloudinary from "../config/cloudinary.js";
+import DeviceSession from "../models/DeviceSession.js";
+import LoginHistory from "../models/LoginHistory.js";
 
-const generateToken = (user) =>
-  jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, {
-    expiresIn: "1d",
-  });
+import {
+  generateAccessToken,
+  generateRefreshToken,
+  hashToken,
+  getCookieOptions,
+  getDeviceName,
+  getClientIp,
+} from "../utils/tokenUtils.js";
 
+// ✅ REFRESH ACCESS TOKEN
+export const refreshAccessToken = async (req, res) => {
+  try {
+    const refreshToken = req.cookies?.refreshToken;
+
+    if (!refreshToken) {
+      return res.status(401).json({
+        success: false,
+        message: "Refresh token missing",
+      });
+    }
+
+    const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
+
+    const session = await DeviceSession.findOne({
+      _id: decoded.sessionId,
+      user: decoded.id,
+      isActive: true,
+    }).select("+refreshTokenHash");
+
+    if (!session) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid session",
+      });
+    }
+
+    if (session.expiresAt < new Date()) {
+      session.isActive = false;
+      await session.save();
+
+      return res.status(401).json({
+        success: false,
+        message: "Session expired",
+      });
+    }
+
+    const incomingHash = hashToken(refreshToken);
+
+    if (incomingHash !== session.refreshTokenHash) {
+      session.isActive = false;
+      await session.save();
+
+      return res.status(401).json({
+        success: false,
+        message: "Refresh token reuse detected. Session revoked.",
+      });
+    }
+
+    const user = await User.findById(decoded.id);
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    const newAccessToken = generateAccessToken(user);
+    const newRefreshToken = generateRefreshToken(user, session._id);
+
+    session.refreshTokenHash = hashToken(newRefreshToken);
+    session.lastUsedAt = new Date();
+    await session.save();
+
+    res.cookie("refreshToken", newRefreshToken, getCookieOptions());
+
+    return res.status(200).json({
+      success: true,
+      accessToken: newAccessToken,
+    });
+  } catch {
+    return res.status(401).json({
+      success: false,
+      message: "Invalid or expired refresh token",
+    });
+  }
+};
+
+// ✅ GET CLOUDINARY PUBLIC ID FROM URL
 const getCloudinaryPublicIdFromUrl = (url) => {
   if (!url || !url.includes("cloudinary.com")) return "";
 
@@ -87,6 +173,7 @@ export const registerUser = async (req, res) => {
   }
 };
 
+// ✅ VERIFY EMAIL OTP
 export const verifyEmailOtp = async (req, res) => {
   try {
     const { email, otp } = req.body;
@@ -134,6 +221,7 @@ export const verifyEmailOtp = async (req, res) => {
   }
 };
 
+// ✅ RESEND EMAIL OTP
 export const resendEmailOtp = async (req, res) => {
   try {
     const { email } = req.body;
@@ -200,16 +288,46 @@ export const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    const user = await User.findOne({ email }).select("+password");
+    const normalizedEmail = email?.trim().toLowerCase();
+    const ipAddress = getClientIp(req);
+    const userAgent = req.headers["user-agent"] || "";
+    const deviceName = getDeviceName(userAgent);
+
+    if (!normalizedEmail || !password) {
+      return res.status(400).json({
+        success: false,
+        message: "Email and password are required",
+      });
+    }
+
+    const user = await User.findOne({ email: normalizedEmail }).select(
+      "+password",
+    );
 
     if (!user) {
-      return res.status(401).json({ message: "Invalid credentials" });
+      return res.status(401).json({
+        success: false,
+        message: "Invalid credentials",
+      });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
 
     if (!isMatch) {
-      return res.status(401).json({ message: "Invalid credentials" });
+      await LoginHistory.create({
+        user: user._id,
+        email: user.email,
+        status: "failed",
+        reason: "Invalid password",
+        ipAddress,
+        userAgent,
+        deviceName,
+      });
+
+      return res.status(401).json({
+        success: false,
+        message: "Invalid credentials",
+      });
     }
 
     if (!user.isEmailVerified) {
@@ -221,11 +339,39 @@ export const loginUser = async (req, res) => {
       });
     }
 
-    const token = generateToken(user);
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
-    res.json({
+    const session = await DeviceSession.create({
+      user: user._id,
+      refreshTokenHash: "pending",
+      ipAddress,
+      userAgent,
+      deviceName,
+      expiresAt,
+    });
+
+    const accessToken = generateAccessToken(user);
+    const refreshToken = generateRefreshToken(user, session._id);
+
+    session.refreshTokenHash = hashToken(refreshToken);
+    await session.save();
+
+    await LoginHistory.create({
+      user: user._id,
+      email: user.email,
+      status: "success",
+      reason: "Login successful",
+      ipAddress,
+      userAgent,
+      deviceName,
+    });
+
+    res.cookie("refreshToken", refreshToken, getCookieOptions());
+
+    return res.status(200).json({
+      success: true,
       message: "Login successful",
-      token,
+      accessToken,
       user: {
         id: user._id,
         name: user.name,
@@ -236,7 +382,10 @@ export const loginUser = async (req, res) => {
       },
     });
   } catch (error) {
-    res.status(500).json({ message: "Login failed" });
+    return res.status(500).json({
+      success: false,
+      message: "Login failed",
+    });
   }
 };
 
@@ -370,6 +519,7 @@ export const getUserProfile = async (req, res) => {
   });
 };
 
+// ✅ UPDATE PROFILE
 export const updateUserProfile = async (req, res) => {
   try {
     const { name, avatar } = req.body;
@@ -524,6 +674,116 @@ export const changePassword = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Failed to change password",
+    });
+  }
+};
+
+// ✅ LOGOUT
+export const logoutUser = async (req, res) => {
+  try {
+    const refreshToken = req.cookies?.refreshToken;
+
+    if (refreshToken) {
+      try {
+        const decoded = jwt.verify(
+          refreshToken,
+          process.env.REFRESH_TOKEN_SECRET,
+        );
+
+        await DeviceSession.findOneAndUpdate(
+          {
+            _id: decoded.sessionId,
+            user: decoded.id,
+          },
+          {
+            isActive: false,
+          },
+        );
+      } catch {
+        // ignore invalid token on logout
+      }
+    }
+
+    res.clearCookie("refreshToken", getCookieOptions());
+
+    return res.status(200).json({
+      success: true,
+      message: "Logged out successfully",
+    });
+  } catch {
+    return res.status(500).json({
+      success: false,
+      message: "Logout failed",
+    });
+  }
+};
+
+// ✅ GET ACTIVE SESSIONS
+export const getMyDeviceSessions = async (req, res) => {
+  try {
+    const sessions = await DeviceSession.find({
+      user: req.user._id,
+      isActive: true,
+    })
+      .select("deviceName ipAddress userAgent lastUsedAt createdAt expiresAt")
+      .sort({ lastUsedAt: -1 });
+
+    return res.status(200).json({
+      success: true,
+      sessions,
+    });
+  } catch {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch device sessions",
+    });
+  }
+};
+
+// ✅ REVOKE DEVICE SESSION
+export const revokeDeviceSession = async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+
+    await DeviceSession.findOneAndUpdate(
+      {
+        _id: sessionId,
+        user: req.user._id,
+      },
+      {
+        isActive: false,
+      },
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Session revoked successfully",
+    });
+  } catch {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to revoke session",
+    });
+  }
+};
+
+// ✅ GET LOGIN HISTORY
+export const getMyLoginHistory = async (req, res) => {
+  try {
+    const history = await LoginHistory.find({
+      user: req.user._id,
+    })
+      .sort({ createdAt: -1 })
+      .limit(30);
+
+    return res.status(200).json({
+      success: true,
+      history,
+    });
+  } catch {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch login history",
     });
   }
 };

@@ -23,6 +23,7 @@ import mockInterviewRoutes from "./routes/mockInterviewRoutes.js";
 import jobReadinessRoutes from "./routes/jobReadinessRoutes.js";
 import resumeAnalysisRoutes from "./routes/resumeAnalysisRoutes.js";
 import studyPlannerRoutes from "./routes/studyPlannerRoutes.js";
+import securityRoutes from "./routes/securityRoutes.js";
 
 const PORT = process.env.PORT || 5000;
 
@@ -30,6 +31,7 @@ const startServer = async () => {
   try {
     await connectDB();
 
+    app.use("/api/security", securityRoutes);
     app.use("/api/auth", authRoutes); // ✅ RESTORED
     app.use("/api/courses", courseRoutes);
     app.use("/api/progress", progressRoutes);

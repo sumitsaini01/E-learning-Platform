@@ -87,3 +87,13 @@ export const resendEmailOtp = async (email) => {
 
   return response.data;
 };
+
+export const logoutRequest = async () => {
+  const { data } = await api.post("/auth/logout");
+  return data;
+};
+
+export const refreshAccessToken = async () => {
+  const { data } = await api.post("/auth/refresh-token");
+  return data;
+};

@@ -63,6 +63,22 @@ if (process.env.NODE_ENV !== "production") {
   app.use(morgan("dev"));
 }
 
+app.get("/favicon.ico", (req, res) => res.status(204).end());
+
+app.get("/", (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: "SkillSphere API is running",
+  });
+});
+
+app.get("/api/health", (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: "SkillSphere API health check passed",
+  });
+});
+
 app.use("/api/health", healthRoutes);
 
 export default app;

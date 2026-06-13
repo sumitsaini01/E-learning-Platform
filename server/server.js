@@ -7,7 +7,7 @@ import courseRoutes from "./routes/courseRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import progressRoutes from "./routes/progressRoutes.js";
 import paymentRoutes from "./routes/paymentRoutes.js";
-import quizRoutes from "./routes/quizRoutes.js";
+import quizRoutes from "./routes/quizroutes.js";
 import certificateRoutes from "./routes/certificateRoutes.js";
 import activityRoutes from "./routes/activityRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";

@@ -49,29 +49,31 @@ function RegisterPage() {
   };
 
   return (
-    <section className="mx-auto w-full max-w-md">
-      <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
-        <div className="mb-6">
-          <h1 className="text-2xl font-semibold text-zinc-950">
+    <section className="mx-auto flex min-h-[calc(100vh-5rem)] w-full max-w-md items-center px-4 py-10">
+      <div className="w-full rounded-3xl border border-slate-200 bg-white p-8 shadow-xl shadow-slate-200/60 transition-colors dark:border-slate-800 dark:bg-slate-900 dark:shadow-none">
+        <div className="mb-7">
+          <p className="text-sm font-semibold text-blue-600 dark:text-blue-400">
+            Join SkillSphere
+          </p>
+
+          <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950 dark:text-white">
             Create account
           </h1>
-          <p className="mt-2 text-sm text-zinc-600">
+
+          <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
             Start building your learning profile.
           </p>
         </div>
 
         {error ? (
-          <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
             {error}
           </div>
         ) : null}
 
-        <form className="space-y-4" onSubmit={handleSubmit}>
+        <form className="space-y-5" onSubmit={handleSubmit}>
           <div>
-            <label
-              htmlFor="name"
-              className="block text-sm font-medium text-zinc-800"
-            >
+            <label htmlFor="name" className={labelClass}>
               Name
             </label>
             <input
@@ -80,7 +82,7 @@ function RegisterPage() {
               type="text"
               value={formData.name}
               onChange={handleChange}
-              className="mt-2 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
+              className={inputClass}
               placeholder="Your name"
               autoComplete="name"
               required
@@ -88,10 +90,7 @@ function RegisterPage() {
           </div>
 
           <div>
-            <label
-              htmlFor="register-email"
-              className="block text-sm font-medium text-zinc-800"
-            >
+            <label htmlFor="register-email" className={labelClass}>
               Email
             </label>
             <input
@@ -100,7 +99,7 @@ function RegisterPage() {
               type="email"
               value={formData.email}
               onChange={handleChange}
-              className="mt-2 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
+              className={inputClass}
               placeholder="you@example.com"
               autoComplete="email"
               required
@@ -108,15 +107,12 @@ function RegisterPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-zinc-800">
-              Account Type
-            </label>
-
+            <label className={labelClass}>Account Type</label>
             <select
               name="role"
               value={formData.role}
               onChange={handleChange}
-              className="mt-2 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
+              className={inputClass}
             >
               <option value="student">Student</option>
               <option value="instructor">Instructor</option>
@@ -124,10 +120,7 @@ function RegisterPage() {
           </div>
 
           <div>
-            <label
-              htmlFor="password"
-              className="block text-sm font-medium text-zinc-800"
-            >
+            <label htmlFor="password" className={labelClass}>
               Password
             </label>
 
@@ -138,7 +131,7 @@ function RegisterPage() {
                 type={showPassword ? "text" : "password"}
                 value={formData.password}
                 onChange={handleChange}
-                className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 pr-11 text-sm outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
+                className={`${inputClass} pr-12`}
                 placeholder="Enter your password"
                 autoComplete="new-password"
                 required
@@ -147,7 +140,8 @@ function RegisterPage() {
               <button
                 type="button"
                 onClick={() => setShowPassword((prev) => !prev)}
-                className="absolute inset-y-0 right-0 flex items-center px-3 text-zinc-500 hover:text-zinc-800"
+                className="absolute inset-y-0 right-0 flex items-center px-4 text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+                aria-label={showPassword ? "Hide password" : "Show password"}
               >
                 {showPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
               </button>
@@ -157,17 +151,17 @@ function RegisterPage() {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-emerald-400"
+            className="w-full rounded-2xl bg-blue-600 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-400"
           >
             {isLoading ? "Creating account..." : "Register"}
           </button>
         </form>
 
-        <p className="mt-5 text-center text-sm text-zinc-600">
+        <p className="mt-6 text-center text-sm text-slate-600 dark:text-slate-400">
           Already have an account?{" "}
           <Link
             to="/login"
-            className="font-medium text-emerald-700 hover:text-emerald-800"
+            className="font-semibold text-blue-600 transition hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
           >
             Login
           </Link>
@@ -176,5 +170,11 @@ function RegisterPage() {
     </section>
   );
 }
+
+const labelClass =
+  "block text-sm font-semibold text-slate-800 dark:text-slate-200";
+
+const inputClass =
+  "mt-2 w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:placeholder:text-slate-500 dark:focus:border-blue-500 dark:focus:ring-blue-950";
 
 export default RegisterPage;

@@ -97,7 +97,7 @@ function CertificateVerificationPage() {
   if (isLoading) {
     return (
       <section className="mx-auto max-w-5xl">
-        <div className="animate-pulse rounded-3xl border border-zinc-200 bg-white p-10 shadow-sm">
+        <div className="animate-pulse rounded-3xl border border-slate-200 bg-white p-10 shadow-sm dark:border-slate-800 dark:bg-slate-900">
           <div className="h-8 w-64 rounded bg-zinc-200" />
           <div className="mt-8 h-96 rounded bg-zinc-200" />
         </div>
@@ -108,7 +108,7 @@ function CertificateVerificationPage() {
   if (error || !certificate) {
     return (
       <section className="mx-auto max-w-2xl">
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-8 text-center shadow-sm">
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-8 text-center shadow-sm dark:border-red-900 dark:bg-red-950/40">
           <p className="text-sm font-semibold uppercase tracking-wide text-red-700">
             Certificate Verification Failed
           </p>
@@ -144,14 +144,14 @@ function CertificateVerificationPage() {
   );
 
   return (
-    <section className="mx-auto max-w-6xl">
+    <section className="mx-auto max-w-6xl text-slate-950 dark:text-white">
       <style>{printStyles}</style>
 
       <div className="print-hidden mb-6 flex items-center justify-between">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-wide text-emerald-700">
-            Verified Certificate
-          </p>
+          <div className="inline-flex items-center rounded-full bg-emerald-100 px-4 py-1 text-sm font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+            ✓ Verified Certificate
+          </div>
 
           <h1 className="mt-2 text-3xl font-bold text-zinc-950">
             SkillSphere Certificate
@@ -225,6 +225,10 @@ function CertificateVerificationPage() {
             <h4 className="mx-auto mt-5 max-w-3xl text-3xl font-black text-emerald-950">
               {certificate.courseTitle}
             </h4>
+
+            <p className="mt-3 text-sm font-semibold text-emerald-700">
+              Completion: {certificate.completionPercentage}%
+            </p>
           </div>
 
           <div className="grid grid-cols-3 items-end gap-10 text-left">

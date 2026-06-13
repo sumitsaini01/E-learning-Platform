@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import CourseGrid from "../components/CourseGrid";
+import CourseFilters from "../components/courses/CourseFilters";
+import CoursesToolbar from "../components/courses/CoursesToolbar";
 import { getCourses } from "../services/courseService";
 
 const categoryOptions = [
@@ -18,11 +20,8 @@ const categoryOptions = [
 
 function CoursesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-
   const [courses, setCourses] = useState([]);
-
   const [error, setError] = useState("");
-
   const [isLoading, setIsLoading] = useState(true);
 
   const search = searchParams.get("search") || "";
@@ -57,10 +56,9 @@ function CoursesPage() {
   const loadCourses = useCallback(async () => {
     try {
       setIsLoading(true);
-
       setError("");
 
-      const params = {
+      const data = await getCourses({
         limit: 50,
         search,
         category,
@@ -68,9 +66,7 @@ function CoursesPage() {
         priceType,
         minRating,
         sort,
-      };
-
-      const data = await getCourses(params);
+      });
 
       setCourses(data.courses || []);
     } catch (err) {
@@ -91,140 +87,65 @@ function CoursesPage() {
   const hasFilters = Boolean(category || level || priceType || minRating);
 
   return (
-    <section className="space-y-8">
-      <div>
-        <p className="text-sm font-medium uppercase tracking-wide text-emerald-700">
-          Courses
-        </p>
+    <section className="bg-slate-50 py-8 dark:bg-slate-950">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
+          <CourseFilters
+            categoryOptions={categoryOptions}
+            category={category}
+            level={level}
+            priceType={priceType}
+            minRating={minRating}
+            updateFilter={updateFilter}
+            clearFilters={clearFilters}
+            hasFilters={hasFilters}
+          />
 
-        <h1 className="mt-2 text-3xl font-semibold text-zinc-950">
-          Browse courses
-        </h1>
+          <main>
+            <div className="mb-6">
+              <p className="text-sm font-semibold uppercase tracking-wide text-blue-600 dark:text-blue-400">
+                Browse Courses
+              </p>
 
-        <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-600">
-          Explore all available courses and filter by category, level, price,
-          rating, and popularity.
-        </p>
+              <h1 className="mt-2 text-4xl font-bold tracking-tight text-slate-950 dark:text-white">
+                Browse Courses
+              </h1>
 
-        {search ? (
-          <p className="mt-4 text-sm font-medium text-emerald-700">
-            Search results for: "{search}"
-          </p>
-        ) : null}
-      </div>
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-400">
+                Explore all available courses and filter by category, level,
+                price, rating, and popularity.
+              </p>
+            </div>
 
-      <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-        <div className="grid gap-4 md:grid-cols-5">
-          <div>
-            <label className="block text-sm font-medium text-zinc-800">
-              Category
-            </label>
+            <CoursesToolbar
+              search={search}
+              sort={sort}
+              updateFilter={updateFilter}
+            />
 
-            <select
-              value={category}
-              onChange={(event) => updateFilter("category", event.target.value)}
-              className="mt-2 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
-            >
-              <option value="">All Categories</option>
+            <div className="mt-5 mb-6 flex items-center justify-between">
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                {isLoading
+                  ? "Loading courses..."
+                  : `${courses.length} courses found`}
+              </p>
 
-              {categoryOptions.map((item) => (
-                <option key={item.value} value={item.value}>
-                  {item.label}
-                </option>
-              ))}
-            </select>
-          </div>
+              {search && (
+                <p className="text-sm font-medium text-blue-600 dark:text-blue-400">
+                  Search: "{search}"
+                </p>
+              )}
+            </div>
 
-          <div>
-            <label className="block text-sm font-medium text-zinc-800">
-              Level
-            </label>
-
-            <select
-              value={level}
-              onChange={(event) => updateFilter("level", event.target.value)}
-              className="mt-2 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
-            >
-              <option value="">All Levels</option>
-              <option value="beginner">Beginner</option>
-              <option value="intermediate">Intermediate</option>
-              <option value="advanced">Advanced</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-zinc-800">
-              Price
-            </label>
-
-            <select
-              value={priceType}
-              onChange={(event) =>
-                updateFilter("priceType", event.target.value)
-              }
-              className="mt-2 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
-            >
-              <option value="">All Prices</option>
-              <option value="free">Free</option>
-              <option value="paid">Paid</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-zinc-800">
-              Rating
-            </label>
-
-            <select
-              value={minRating}
-              onChange={(event) =>
-                updateFilter("minRating", event.target.value)
-              }
-              className="mt-2 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
-            >
-              <option value="">Any Rating</option>
-              <option value="4">4★ & above</option>
-              <option value="3">3★ & above</option>
-              <option value="2">2★ & above</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-zinc-800">
-              Sort By
-            </label>
-
-            <select
-              value={sort}
-              onChange={(event) => updateFilter("sort", event.target.value)}
-              className="mt-2 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
-            >
-              <option value="newest">Newest</option>
-              <option value="highest-rated">Highest Rated</option>
-              <option value="popular">Most Popular</option>
-              <option value="price-low">Price Low to High</option>
-              <option value="price-high">Price High to Low</option>
-            </select>
-          </div>
+            <CourseGrid
+              courses={courses}
+              error={error}
+              isLoading={isLoading}
+              onRetry={loadCourses}
+            />
+          </main>
         </div>
-
-        {hasFilters ? (
-          <button
-            type="button"
-            onClick={clearFilters}
-            className="mt-5 rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-800 transition hover:bg-zinc-100"
-          >
-            Clear Filters
-          </button>
-        ) : null}
       </div>
-
-      <CourseGrid
-        courses={courses}
-        error={error}
-        isLoading={isLoading}
-        onRetry={loadCourses}
-      />
     </section>
   );
 }

@@ -244,10 +244,16 @@ export const createQuiz = async (req, res) => {
 
 export const getInstructorQuizzes = async (req, res) => {
   try {
-    const quizzes = await Quiz.find({
-      instructor: req.user._id,
-    })
-      .populate("course", "title category level students")
+    const filter =
+      req.user.role === "admin"
+        ? {}
+        : {
+            instructor: req.user._id,
+          };
+
+    const quizzes = await Quiz.find(filter)
+      .populate("course", "title category level students instructor")
+      .populate("instructor", "name email")
       .sort({ createdAt: -1 });
 
     return res.status(200).json({
@@ -256,7 +262,7 @@ export const getInstructorQuizzes = async (req, res) => {
       quizzes,
     });
   } catch (error) {
-    console.error("Get instructor quizzes error:", error);
+    console.error("Get quizzes error:", error);
 
     return sendServerError(res, "Failed to fetch quizzes", error);
   }

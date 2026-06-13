@@ -30,6 +30,19 @@ const PORT = process.env.PORT || 5000;
 const startServer = async () => {
   try {
     await connectDB();
+    app.get("/", (req, res) => {
+      res.status(200).json({
+        success: true,
+        message: "SkillSphere API is running",
+      });
+    });
+
+    app.get("/api/health", (req, res) => {
+      res.status(200).json({
+        success: true,
+        message: "SkillSphere API health check passed",
+      });
+    });
 
     app.use("/api/security", securityRoutes);
     app.use("/api/auth", authRoutes); // ✅ RESTORED

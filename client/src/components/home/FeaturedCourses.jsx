@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import SectionHeading from "./SectionHeading";
-import CourseCard from "../ui/CourseCard";
+import CourseCard from "../UI/CourseCard";
 
 function FeaturedCourses({ courses = [], isLoading = false }) {
   const visibleCourses = courses.slice(0, 3);

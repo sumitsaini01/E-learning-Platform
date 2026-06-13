@@ -1,5 +1,5 @@
 import SectionHeading from "./SectionHeading";
-import CategoryCard from "../ui/CategoryCard";
+import CategoryCard from "../UI/CategoryCard";
 
 function TopCategories({ categories = [], isLoading = false }) {
   const visibleCategories = categories.slice(0, 6);

@@ -1,5 +1,5 @@
 import SectionHeading from "./SectionHeading";
-import TestimonialCard from "../ui/TestimonialCard";
+import TestimonialCard from "../UI/TestimonialCard";
 
 function TestimonialsSection({ testimonials = [], isLoading = false }) {
   const visibleTestimonials = testimonials.slice(0, 3);

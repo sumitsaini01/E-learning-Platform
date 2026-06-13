@@ -1,4 +1,5 @@
 import {
+  ShieldCheck,
   BarChart3,
   BookOpen,
   FileQuestion,
@@ -34,6 +35,13 @@ const adminLinks = [
   { label: "Users", to: "/admin/users", icon: Users },
   { label: "Courses", to: "/admin/courses", icon: BookOpen },
   { label: "Quizzes", to: "/admin/quizzes", icon: FileQuestion },
+
+  {
+    label: "Security",
+    to: "/admin/security",
+    icon: ShieldCheck,
+  },
+
   { label: "Settings", to: "/admin/settings", icon: Settings },
 ];
 

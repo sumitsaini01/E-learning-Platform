@@ -1,3 +1,4 @@
+import { createAuditLog } from "../utils/auditLogger.js";
 import User from "../models/User.js";
 import Course from "../models/Course.js";
 import Order from "../models/Order.js";
@@ -200,6 +201,18 @@ export const updateUserRole = async (req, res) => {
         message: "User not found",
       });
     }
+
+    await createAuditLog({
+      req,
+      action: "USER_ROLE_UPDATED",
+      resourceType: "User",
+      resourceId: userId,
+      message: `User role changed to ${role}`,
+      metadata: {
+        targetUserEmail: user.email,
+        newRole: role,
+      },
+    });
 
     return res.status(200).json({
       success: true,
@@ -891,6 +904,18 @@ export const updateUserVerificationStatus = async (req, res) => {
       });
     }
 
+    await createAuditLog({
+      req,
+      action: "USER_VERIFICATION_UPDATED",
+      resourceType: "User",
+      resourceId: userId,
+      message: `User verification changed to ${isEmailVerified}`,
+      metadata: {
+        targetUserEmail: user.email,
+        isEmailVerified,
+      },
+    });
+
     return res.status(200).json({
       success: true,
       message: isEmailVerified
@@ -923,6 +948,9 @@ export const deleteAdminUser = async (req, res) => {
       });
     }
 
+    const deletedUserEmail = user.email;
+    const deletedUserRole = user.role;
+
     await Promise.all([
       QuizAttempt.deleteMany({ user: userId }),
       Order.deleteMany({ user: userId }),
@@ -952,6 +980,18 @@ export const deleteAdminUser = async (req, res) => {
     ]);
 
     await user.deleteOne();
+
+    await createAuditLog({
+      req,
+      action: "USER_DELETED",
+      resourceType: "User",
+      resourceId: userId,
+      message: "Admin deleted a user",
+      metadata: {
+        deletedUserEmail,
+        deletedUserRole,
+      },
+    });
 
     return res.status(200).json({
       success: true,
@@ -992,6 +1032,18 @@ export const updateAdminCourseStatus = async (req, res) => {
       });
     }
 
+    await createAuditLog({
+      req,
+      action: "COURSE_STATUS_UPDATED",
+      resourceType: "Course",
+      resourceId: courseId,
+      message: `Course status changed to ${status}`,
+      metadata: {
+        courseTitle: course.title,
+        status,
+      },
+    });
+
     return res.status(200).json({
       success: true,
       message:
@@ -1018,6 +1070,8 @@ export const deleteAdminCourse = async (req, res) => {
       });
     }
 
+    const courseTitle = course.title;
+
     await Promise.all([
       Quiz.deleteMany({ course: courseId }),
       QuizAttempt.deleteMany({ course: courseId }),
@@ -1026,6 +1080,17 @@ export const deleteAdminCourse = async (req, res) => {
     ]);
 
     await course.deleteOne();
+
+    await createAuditLog({
+      req,
+      action: "COURSE_DELETED",
+      resourceType: "Course",
+      resourceId: courseId,
+      message: "Admin deleted a course",
+      metadata: {
+        courseTitle,
+      },
+    });
 
     return res.status(200).json({
       success: true,

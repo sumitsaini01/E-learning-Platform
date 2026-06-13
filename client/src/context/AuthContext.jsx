@@ -5,6 +5,7 @@ import {
   getStoredToken,
   getStoredUser,
   login as loginRequest,
+  logoutRequest,
   setAuthSession,
 } from "../services/authService";
 
@@ -15,21 +16,27 @@ export function AuthProvider({ children }) {
   const login = useCallback(async (credentials) => {
     const data = await loginRequest(credentials);
 
-    if (!data.token || !data.user) {
+    if (!data.accessToken || !data.user) {
       throw new Error("Invalid login response from server");
     }
 
-    setAuthSession({ token: data.token, user: data.user });
-    setToken(data.token);
+    setAuthSession({ token: data.accessToken, user: data.user });
+    setToken(data.accessToken);
     setUser(data.user);
 
     return data.user;
   }, []);
 
-  const logout = useCallback(() => {
-    clearAuthSession();
-    setToken(null);
-    setUser(null);
+  const logout = useCallback(async () => {
+    try {
+      await logoutRequest();
+    } catch (error) {
+      console.error("Logout request failed:", error);
+    } finally {
+      clearAuthSession();
+      setToken(null);
+      setUser(null);
+    }
   }, []);
 
   const updateUser = useCallback(

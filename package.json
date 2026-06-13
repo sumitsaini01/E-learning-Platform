@@ -6,7 +6,7 @@
   "main": "server.js",
   "scripts": {
     "dev": "nodemon --exec node -r dotenv/config server/server.js",
-    "start": "node server.js",
+    "start": "node server/server.js",
     "create-admin": "node server/scripts/createAdmin.js"
   },
   "keywords": [],

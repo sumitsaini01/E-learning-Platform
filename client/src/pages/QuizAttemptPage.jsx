@@ -52,9 +52,7 @@ function QuizAttemptPage() {
 
         setError(err.response?.data?.message || "Unable to load quiz.");
       } finally {
-        if (shouldUpdate) {
-          setIsLoading(false);
-        }
+        if (shouldUpdate) setIsLoading(false);
       }
     };
 
@@ -81,9 +79,7 @@ function QuizAttemptPage() {
     return () => clearTimeout(timer);
   }, [timeLeft, result, hasAutoSubmitted]);
 
-  const answeredCount = useMemo(() => {
-    return Object.keys(answers).length;
-  }, [answers]);
+  const answeredCount = useMemo(() => Object.keys(answers).length, [answers]);
 
   const totalQuestions = quiz?.questions?.length || 0;
   const canSubmit = totalQuestions > 0 && answeredCount === totalQuestions;
@@ -139,23 +135,23 @@ function QuizAttemptPage() {
     const isCorrect = questionReview.correctOptionIndex === optionIndex;
 
     if (isCorrect) {
-      return "border-emerald-300 bg-emerald-50 text-emerald-900";
+      return "border-emerald-300 bg-emerald-50 text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300";
     }
 
     if (isSelected && !questionReview.isCorrect) {
-      return "border-red-300 bg-red-50 text-red-900";
+      return "border-red-300 bg-red-50 text-red-900 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300";
     }
 
-    return "border-zinc-200 bg-white text-zinc-700";
+    return "border-slate-200 bg-white text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300";
   };
 
   if (isLoading) {
     return (
       <section className="mx-auto max-w-4xl space-y-6">
-        <div className="animate-pulse rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
-          <div className="h-6 w-48 rounded bg-zinc-200" />
-          <div className="mt-6 h-32 rounded bg-zinc-200" />
-          <div className="mt-5 h-10 rounded bg-zinc-200" />
+        <div className="animate-pulse rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <div className="h-6 w-48 rounded bg-slate-200 dark:bg-slate-800" />
+          <div className="mt-6 h-32 rounded bg-slate-200 dark:bg-slate-800" />
+          <div className="mt-5 h-10 rounded bg-slate-200 dark:bg-slate-800" />
         </div>
       </section>
     );
@@ -163,12 +159,14 @@ function QuizAttemptPage() {
 
   if (error && !quiz) {
     return (
-      <section className="mx-auto max-w-2xl rounded-lg border border-red-200 bg-red-50 p-6 text-center">
-        <p className="text-sm font-medium text-red-800">{error}</p>
+      <section className="mx-auto max-w-2xl rounded-3xl border border-red-200 bg-red-50 p-6 text-center dark:border-red-900 dark:bg-red-950/40">
+        <p className="text-sm font-semibold text-red-800 dark:text-red-300">
+          {error}
+        </p>
 
         <Link
           to="/dashboard/student"
-          className="mt-5 inline-flex rounded-md bg-red-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-800"
+          className="mt-5 inline-flex rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700"
         >
           Back to Dashboard
         </Link>
@@ -178,12 +176,14 @@ function QuizAttemptPage() {
 
   if (!quiz) {
     return (
-      <section className="mx-auto max-w-2xl rounded-lg border border-zinc-200 bg-white p-6 text-center shadow-sm">
-        <h2 className="text-xl font-semibold text-zinc-950">Quiz not found</h2>
+      <section className="mx-auto max-w-2xl rounded-3xl border border-slate-200 bg-white p-6 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <h2 className="text-xl font-bold text-slate-950 dark:text-white">
+          Quiz not found
+        </h2>
 
         <Link
           to="/dashboard/student"
-          className="mt-5 inline-flex rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800"
+          className="mt-5 inline-flex rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
         >
           Back to Dashboard
         </Link>
@@ -193,37 +193,32 @@ function QuizAttemptPage() {
 
   return (
     <section className="mx-auto max-w-4xl space-y-6">
-      <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
-        <p className="text-sm font-medium uppercase tracking-wide text-emerald-700">
+      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <p className="text-sm font-semibold uppercase tracking-wide text-blue-600 dark:text-blue-400">
           Quiz Attempt
         </p>
 
-        <h1 className="mt-2 text-3xl font-semibold text-zinc-950">
+        <h1 className="mt-2 text-3xl font-bold text-slate-950 dark:text-white">
           {quiz.title}
         </h1>
 
         {quiz.description ? (
-          <p className="mt-3 text-sm leading-6 text-zinc-600">
+          <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-400">
             {quiz.description}
           </p>
         ) : null}
 
         <div className="mt-5 flex flex-wrap gap-3 text-sm">
-          <span className="rounded-full bg-zinc-100 px-3 py-1 font-medium text-zinc-700">
-            {totalQuestions} questions
-          </span>
-
-          <span className="rounded-full bg-emerald-100 px-3 py-1 font-medium text-emerald-800">
-            Passing {quiz.passingPercentage}%
-          </span>
+          <Badge>{totalQuestions} questions</Badge>
+          <Badge variant="success">Passing {quiz.passingPercentage}%</Badge>
 
           {quiz.timeLimitMinutes > 0 ? (
-            <span className="rounded-full bg-blue-100 px-3 py-1 font-medium text-blue-800">
+            <Badge variant="blue">
               Time Left:{" "}
               {timeLeft !== null
                 ? `${Math.floor(timeLeft / 60)}:${String(timeLeft % 60).padStart(2, "0")}`
                 : `${quiz.timeLimitMinutes} min`}
-            </span>
+            </Badge>
           ) : null}
         </div>
       </div>
@@ -231,46 +226,48 @@ function QuizAttemptPage() {
       {result ? (
         <>
           <div
-            className={`rounded-lg border p-6 text-center shadow-sm ${
+            className={`rounded-3xl border p-6 text-center shadow-sm ${
               result.passed
-                ? "border-emerald-200 bg-emerald-50"
-                : "border-red-200 bg-red-50"
+                ? "border-emerald-200 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950/40"
+                : "border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/40"
             }`}
           >
             <p
-              className={`text-sm font-medium uppercase tracking-wide ${
-                result.passed ? "text-emerald-700" : "text-red-700"
+              className={`text-sm font-semibold uppercase tracking-wide ${
+                result.passed
+                  ? "text-emerald-700 dark:text-emerald-300"
+                  : "text-red-700 dark:text-red-300"
               }`}
             >
               {result.passed ? "Passed" : "Not Passed"}
             </p>
 
-            <h2 className="mt-2 text-4xl font-semibold text-zinc-950">
+            <h2 className="mt-2 text-4xl font-bold text-slate-950 dark:text-white">
               {result.percentage}%
             </h2>
 
-            <p className="mt-3 text-sm text-zinc-700">
+            <p className="mt-3 text-sm text-slate-700 dark:text-slate-300">
               Score: {result.score} / {result.totalPoints}
             </p>
 
-            <p className="mt-1 text-sm text-zinc-700">
+            <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">
               Passing requirement: {result.passingPercentage}%
             </p>
 
-            <p className="mt-1 text-sm text-zinc-700">
+            <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">
               Attempt #{result.attemptNumber}
             </p>
 
             <Link
               to="/dashboard/student"
-              className="mt-6 inline-flex rounded-md bg-zinc-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800"
+              className="mt-6 inline-flex rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
             >
               Back to Dashboard
             </Link>
           </div>
 
-          <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
-            <h2 className="text-xl font-semibold text-zinc-950">
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            <h2 className="text-xl font-bold text-slate-950 dark:text-white">
               Answer Review
             </h2>
 
@@ -278,15 +275,15 @@ function QuizAttemptPage() {
               {review.map((questionReview, questionIndex) => (
                 <div
                   key={questionReview.questionId}
-                  className="rounded-lg border border-zinc-200 p-5"
+                  className="rounded-2xl border border-slate-200 p-5 dark:border-slate-800"
                 >
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div>
-                      <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                         Question {questionIndex + 1}
                       </p>
 
-                      <h3 className="mt-2 font-semibold text-zinc-950">
+                      <h3 className="mt-2 font-bold text-slate-950 dark:text-white">
                         {questionReview.questionText}
                       </h3>
                     </div>
@@ -294,8 +291,8 @@ function QuizAttemptPage() {
                     <span
                       className={`rounded-full px-3 py-1 text-xs font-semibold ${
                         questionReview.isCorrect
-                          ? "bg-emerald-100 text-emerald-800"
-                          : "bg-red-100 text-red-700"
+                          ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
+                          : "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300"
                       }`}
                     >
                       {questionReview.isCorrect ? "Correct" : "Wrong"} •{" "}
@@ -314,7 +311,7 @@ function QuizAttemptPage() {
                       return (
                         <div
                           key={optionIndex}
-                          className={`rounded-md border p-3 text-sm ${getOptionStyle(
+                          className={`rounded-xl border p-3 text-sm ${getOptionStyle(
                             questionReview,
                             optionIndex,
                           )}`}
@@ -324,13 +321,13 @@ function QuizAttemptPage() {
 
                             <div className="flex gap-2">
                               {isSelected ? (
-                                <span className="rounded-full bg-zinc-100 px-2 py-1 text-xs font-semibold text-zinc-700">
+                                <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-300">
                                   Your answer
                                 </span>
                               ) : null}
 
                               {isCorrect ? (
-                                <span className="rounded-full bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-800">
+                                <span className="rounded-full bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
                                   Correct answer
                                 </span>
                               ) : null}
@@ -342,7 +339,7 @@ function QuizAttemptPage() {
                   </div>
 
                   {questionReview.explanation ? (
-                    <div className="mt-4 rounded-md bg-blue-50 px-4 py-3 text-sm text-blue-800">
+                    <div className="mt-4 rounded-xl bg-blue-50 px-4 py-3 text-sm text-blue-800 dark:bg-blue-950/40 dark:text-blue-300">
                       <span className="font-semibold">Explanation:</span>{" "}
                       {questionReview.explanation}
                     </div>
@@ -355,31 +352,31 @@ function QuizAttemptPage() {
       ) : (
         <form onSubmit={handleSubmit} className="space-y-5">
           {error ? (
-            <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
               {error}
             </div>
           ) : null}
 
-          <div className="rounded-lg border border-zinc-200 bg-white p-4 text-sm text-zinc-600 shadow-sm">
+          <div className="rounded-3xl border border-slate-200 bg-white p-4 text-sm text-slate-600 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
             Answered {answeredCount} of {totalQuestions} questions
           </div>
 
           {quiz.questions.map((question, questionIndex) => (
             <div
               key={question._id}
-              className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm"
+              className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900"
             >
               <div className="flex items-start justify-between gap-4">
-                <h2 className="text-lg font-semibold text-zinc-950">
+                <h2 className="text-lg font-bold text-slate-950 dark:text-white">
                   Question {questionIndex + 1}
                 </h2>
 
-                <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold text-zinc-700">
+                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-300">
                   {question.points || 1} mark
                 </span>
               </div>
 
-              <p className="mt-3 text-sm leading-6 text-zinc-700">
+              <p className="mt-3 text-sm leading-6 text-slate-700 dark:text-slate-300">
                 {question.questionText}
               </p>
 
@@ -387,10 +384,10 @@ function QuizAttemptPage() {
                 {question.options.map((option, optionIndex) => (
                   <label
                     key={optionIndex}
-                    className={`flex cursor-pointer items-center gap-3 rounded-md border p-3 text-sm transition ${
+                    className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3 text-sm transition ${
                       answers[question._id] === optionIndex
-                        ? "border-emerald-400 bg-emerald-50"
-                        : "border-zinc-200 bg-white hover:border-emerald-200"
+                        ? "border-blue-400 bg-blue-50 dark:border-blue-700 dark:bg-blue-950/40"
+                        : "border-slate-200 bg-white hover:border-blue-300 dark:border-slate-800 dark:bg-slate-950 dark:hover:border-blue-700"
                     }`}
                   >
                     <input
@@ -402,7 +399,9 @@ function QuizAttemptPage() {
                       }
                     />
 
-                    <span className="text-zinc-700">{option}</span>
+                    <span className="text-slate-700 dark:text-slate-300">
+                      {option}
+                    </span>
                   </label>
                 ))}
               </div>
@@ -412,13 +411,31 @@ function QuizAttemptPage() {
           <button
             type="submit"
             disabled={isSubmitting || (!canSubmit && timeLeft !== 0)}
-            className="rounded-md bg-emerald-700 px-5 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-emerald-400"
+            className="rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-400"
           >
             {isSubmitting ? "Submitting..." : "Submit Quiz"}
           </button>
         </form>
       )}
     </section>
+  );
+}
+
+function Badge({ children, variant = "default" }) {
+  const variants = {
+    default:
+      "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
+    success:
+      "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300",
+    blue: "bg-blue-100 text-blue-800 dark:bg-blue-950/40 dark:text-blue-300",
+  };
+
+  return (
+    <span
+      className={`rounded-full px-3 py-1 font-semibold ${variants[variant]}`}
+    >
+      {children}
+    </span>
   );
 }
 

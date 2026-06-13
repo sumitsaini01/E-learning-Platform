@@ -36,6 +36,18 @@ import {
   saveLessonNote,
 } from "../services/noteService";
 
+import CourseHero from "../components/courseDetails/CourseHero";
+import CoursePurchaseCard from "../components/courseDetails/CoursePurchaseCard";
+import ActiveLessonPlayer from "../components/courseDetails/ActiveLessonPlayer";
+import LessonNotes from "../components/courseDetails/LessonNotes";
+import CourseCurriculum from "../components/courseDetails/CourseCurriculum";
+import CourseQuizzes from "../components/courseDetails/CourseQuizzes";
+import AiStudyNotes from "../components/courseDetails/AiStudyNotes";
+import AiFlashcards from "../components/courseDetails/AiFlashcards";
+import CourseCommunity from "../components/courseDetails/CourseCommunity";
+import CourseReviews from "../components/courseDetails/CourseReviews";
+import StarRatingInput from "../components/courseDetails/StarRatingInput";
+
 const formatPrice = (price) =>
   Number(price) === 0
     ? "Free"
@@ -77,29 +89,6 @@ const loadRazorpayScript = () => {
   });
 };
 
-function StarRatingInput({ value, onChange, disabled = false }) {
-  return (
-    <div className="flex items-center gap-1">
-      {[1, 2, 3, 4, 5].map((star) => (
-        <button
-          key={star}
-          type="button"
-          disabled={disabled}
-          onClick={() => onChange(star)}
-          className={`text-2xl transition ${
-            star <= Number(value)
-              ? "text-amber-500"
-              : "text-zinc-300 hover:text-amber-400"
-          } disabled:cursor-not-allowed`}
-          aria-label={`${star} star`}
-        >
-          ★
-        </button>
-      ))}
-    </div>
-  );
-}
-
 function CourseDetailsPage() {
   const { id } = useParams();
   const location = useLocation();
@@ -129,6 +118,8 @@ function CourseDetailsPage() {
   const [flashcards, setFlashcards] = useState([]);
   const [flashcardsError, setFlashcardsError] = useState("");
   const [flippedCards, setFlippedCards] = useState({});
+  const [activeFlashcard, setActiveFlashcard] = useState(0);
+  const [showFlashcardAnswer, setShowFlashcardAnswer] = useState(false);
   const [lessonNote, setLessonNote] = useState(null);
   const [noteMessage, setNoteMessage] = useState("");
   const [noteError, setNoteError] = useState("");
@@ -740,6 +731,8 @@ function CourseDetailsPage() {
 
       setFlashcards(data.flashcards || []);
       setFlippedCards({});
+      setActiveFlashcard(0);
+      setShowFlashcardAnswer(false);
     } catch (err) {
       setFlashcardsError(
         err.response?.data?.message || "Unable to generate flashcards.",
@@ -1013,1114 +1006,145 @@ function CourseDetailsPage() {
   return (
     <section className="mx-auto max-w-6xl space-y-6">
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
-        <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800">
-              {course.category || "General"}
-            </span>
+        <CourseHero
+          course={course}
+          studentCount={studentCount}
+          continueLesson={continueLesson}
+          canTrackProgress={canTrackProgress}
+          openLessonById={openLessonById}
+        />
 
-            <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold text-zinc-700">
-              {studentCount} enrolled
-            </span>
-
-            <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold capitalize text-blue-700">
-              {course.level || "beginner"}
-            </span>
-
-            <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
-              ★ {(course.averageRating || 0).toFixed(1)} (
-              {course.numReviews || 0})
-            </span>
-          </div>
-
-          <h1 className="mt-5 text-3xl font-semibold leading-tight text-zinc-950 sm:text-4xl">
-            {course.title}
-          </h1>
-
-          <p className="mt-5 whitespace-pre-line text-sm leading-7 text-zinc-600">
-            {course.description || "No course description available."}
-          </p>
-
-          {continueLesson?.lessonId && canTrackProgress ? (
-            <button
-              type="button"
-              onClick={() => openLessonById(continueLesson.lessonId)}
-              className="mt-5 rounded-md bg-zinc-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800"
-            >
-              Continue Watching: {continueLesson.lessonTitle}
-            </button>
-          ) : null}
-        </div>
-
-        <aside className="h-fit rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
-          <p className="text-sm text-zinc-500">Price</p>
-
-          <p className="mt-1 text-3xl font-semibold text-zinc-950">
-            {formatPrice(course.price)}
-          </p>
-
-          {isAuthenticated && user?.role === "student" ? (
-            <button
-              type="button"
-              onClick={handleToggleSaveCourse}
-              disabled={isSavingCourse}
-              className="mt-4 w-full rounded-md border border-emerald-300 bg-white px-4 py-2 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isSavingCourse
-                ? "Updating..."
-                : isSaved
-                  ? "Saved ✓"
-                  : "Save Course"}
-            </button>
-          ) : null}
-
-          <div className="mt-6 border-t border-zinc-100 pt-5">
-            <p className="text-sm text-zinc-500">Instructor</p>
-
-            <p className="mt-1 text-sm font-semibold text-zinc-950">
-              {instructorName}
-            </p>
-
-            {instructorEmail ? (
-              <p className="mt-1 text-sm text-zinc-600">{instructorEmail}</p>
-            ) : null}
-          </div>
-
-          {canTrackProgress ? (
-            <div className="mt-6 border-t border-zinc-100 pt-5">
-              <div className="flex items-center justify-between text-sm">
-                <span className="font-medium text-zinc-700">Progress</span>
-                <span className="font-semibold text-emerald-700">
-                  {percentage}%
-                </span>
-              </div>
-
-              <div className="mt-2 h-2 overflow-hidden rounded-full bg-zinc-100">
-                <div
-                  className="h-full rounded-full bg-emerald-600"
-                  style={{ width: `${percentage}%` }}
-                />
-              </div>
-
-              <p className="mt-2 text-xs text-zinc-500">
-                {completed} of {totalLessons} lessons completed
-              </p>
-            </div>
-          ) : null}
-
-          {isEnrolled ? (
-            <div className="mt-5 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
-              You are enrolled in this course.
-            </div>
-          ) : null}
-
-          {enrollMessage ? (
-            <div className="mt-5 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
-              {enrollMessage}
-            </div>
-          ) : null}
-
-          {enrollError ? (
-            <div className="mt-5 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-              {enrollError}
-            </div>
-          ) : null}
-
-          {canPurchase ? (
-            <button
-              type="button"
-              onClick={handleBuyCourse}
-              disabled={isEnrolling}
-              className="mt-6 w-full rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-emerald-400"
-            >
-              {isEnrolling
-                ? isFreeCourse
-                  ? "Enrolling..."
-                  : "Processing..."
-                : isFreeCourse
-                  ? "Enroll for Free"
-                  : "Buy Now"}
-            </button>
-          ) : !isAuthenticated ? (
-            <Link
-              to="/login"
-              state={{ from: location }}
-              className="mt-6 inline-flex w-full justify-center rounded-md bg-zinc-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800"
-            >
-              Login as student to continue
-            </Link>
-          ) : null}
-        </aside>
+        <CoursePurchaseCard
+          course={course}
+          formatPrice={formatPrice}
+          isAuthenticated={isAuthenticated}
+          user={user}
+          location={location}
+          isSaved={isSaved}
+          isSavingCourse={isSavingCourse}
+          handleToggleSaveCourse={handleToggleSaveCourse}
+          canTrackProgress={canTrackProgress}
+          percentage={percentage}
+          completed={completed}
+          totalLessons={totalLessons}
+          isEnrolled={isEnrolled}
+          enrollMessage={enrollMessage}
+          enrollError={enrollError}
+          canPurchase={canPurchase}
+          handleBuyCourse={handleBuyCourse}
+          isEnrolling={isEnrolling}
+          isFreeCourse={isFreeCourse}
+          instructorName={instructorName}
+          instructorEmail={instructorEmail}
+        />
       </div>
 
-      {activeLesson ? (
-        <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
-          <p className="text-sm font-medium uppercase tracking-wide text-emerald-700">
-            {activeLesson.sectionTitle}
-          </p>
+      <ActiveLessonPlayer
+        activeLesson={activeLesson}
+        activeLessonYoutubeEmbedUrl={activeLessonYoutubeEmbedUrl}
+        videoRef={videoRef}
+        handleVideoTimeUpdate={handleVideoTimeUpdate}
+        handleVideoPauseOrEnded={handleVideoPauseOrEnded}
+        canTrackProgress={canTrackProgress}
+        activeLessonWatchedPercent={activeLessonWatchedPercent}
+        progressMessage={progressMessage}
+        handleMarkComplete={handleMarkComplete}
+        isCompleting={isCompleting}
+        isActiveLessonCompleted={isActiveLessonCompleted}
+        nextLesson={nextLesson}
+        handleOpenNextLesson={handleOpenNextLesson}
+      />
 
-          <h2 className="mt-2 text-2xl font-semibold text-zinc-950">
-            {activeLesson.title}
-          </h2>
-
-          {activeLesson.description ? (
-            <p className="mt-3 text-sm leading-6 text-zinc-600">
-              {activeLesson.description}
-            </p>
-          ) : null}
-
-          {activeLesson.videoUrl ? (
-            <div className="mt-5 overflow-hidden rounded-lg border border-zinc-200 bg-black">
-              {activeLessonYoutubeEmbedUrl ? (
-                <iframe
-                  src={activeLessonYoutubeEmbedUrl}
-                  title={activeLesson.title}
-                  className="aspect-video w-full"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                />
-              ) : (
-                <video
-                  ref={videoRef}
-                  src={activeLesson.videoUrl}
-                  controls
-                  controlsList="nodownload"
-                  className="aspect-video w-full"
-                  onTimeUpdate={handleVideoTimeUpdate}
-                  onPause={handleVideoPauseOrEnded}
-                  onEnded={handleVideoPauseOrEnded}
-                />
-              )}
-            </div>
-          ) : (
-            <p className="mt-5 rounded-md bg-stone-50 px-3 py-2 text-sm text-zinc-600">
-              No video URL added for this lesson.
-            </p>
-          )}
-
-          {canTrackProgress ? (
-            <div className="mt-5">
-              <div className="mb-3">
-                <div className="flex items-center justify-between text-xs text-zinc-500">
-                  <span>Watch progress</span>
-                  <span>{activeLessonWatchedPercent}%</span>
-                </div>
-
-                <div className="mt-1 h-2 overflow-hidden rounded-full bg-zinc-100">
-                  <div
-                    className="h-full rounded-full bg-blue-600"
-                    style={{ width: `${activeLessonWatchedPercent}%` }}
-                  />
-                </div>
-              </div>
-
-              {progressMessage ? (
-                <p className="mb-3 rounded-md bg-stone-50 px-3 py-2 text-sm text-zinc-700">
-                  {progressMessage}
-                </p>
-              ) : null}
-
-              <div className="flex flex-wrap gap-3">
-                <button
-                  type="button"
-                  onClick={handleMarkComplete}
-                  disabled={isCompleting || isActiveLessonCompleted}
-                  className="rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-emerald-400"
-                >
-                  {isActiveLessonCompleted
-                    ? "Completed"
-                    : isCompleting
-                      ? "Marking..."
-                      : "Mark as Complete"}
-                </button>
-
-                {nextLesson ? (
-                  <button
-                    type="button"
-                    onClick={handleOpenNextLesson}
-                    className="rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-800 transition hover:bg-zinc-100"
-                  >
-                    Next Lesson →
-                  </button>
-                ) : null}
-              </div>
-            </div>
-          ) : null}
-          {canTrackProgress ? (
-            <div className="mt-8 border-t border-zinc-200 pt-6">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                  <h3 className="text-lg font-semibold text-zinc-950">
-                    My Lesson Notes
-                  </h3>
-                  <p className="mt-1 text-sm text-zinc-600">
-                    Save your personal notes for this lesson.
-                  </p>
-                </div>
-
-                {lessonNote ? (
-                  <button
-                    type="button"
-                    onClick={handleDeleteLessonNote}
-                    disabled={isSavingNote}
-                    className="rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:bg-red-300"
-                  >
-                    Delete Note
-                  </button>
-                ) : null}
-              </div>
-
-              {noteMessage ? (
-                <div className="mt-4 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
-                  {noteMessage}
-                </div>
-              ) : null}
-
-              {noteError ? (
-                <div className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                  {noteError}
-                </div>
-              ) : null}
-
-              <form onSubmit={handleSaveLessonNote} className="mt-5 space-y-4">
-                <input
-                  type="text"
-                  value={noteForm.title}
-                  onChange={(event) =>
-                    setNoteForm((current) => ({
-                      ...current,
-                      title: event.target.value,
-                    }))
-                  }
-                  placeholder="Note title, optional"
-                  className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
-                />
-
-                <textarea
-                  value={noteForm.content}
-                  onChange={(event) =>
-                    setNoteForm((current) => ({
-                      ...current,
-                      content: event.target.value,
-                    }))
-                  }
-                  placeholder="Write your lesson notes here..."
-                  className="min-h-36 w-full resize-y rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
-                />
-
-                <button
-                  type="submit"
-                  disabled={isSavingNote || !noteForm.content.trim()}
-                  className="rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-emerald-400"
-                >
-                  {isSavingNote
-                    ? "Saving..."
-                    : lessonNote
-                      ? "Update Note"
-                      : "Save Note"}
-                </button>
-              </form>
-            </div>
-          ) : null}
-        </div>
+      {canTrackProgress ? (
+        <LessonNotes
+          lessonNote={lessonNote}
+          noteForm={noteForm}
+          setNoteForm={setNoteForm}
+          noteMessage={noteMessage}
+          noteError={noteError}
+          isSavingNote={isSavingNote}
+          handleSaveLessonNote={handleSaveLessonNote}
+          handleDeleteLessonNote={handleDeleteLessonNote}
+        />
       ) : null}
 
-      <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
-        <h2 className="text-xl font-semibold text-zinc-950">
-          Course Curriculum
-        </h2>
-
-        <div className="mt-6 space-y-5">
-          {sections.length === 0 ? (
-            <p className="rounded-lg border border-dashed border-zinc-300 p-6 text-center text-sm text-zinc-600">
-              Curriculum has not been added yet.
-            </p>
-          ) : (
-            sections.map((section, sectionIndex) => (
-              <div
-                key={section._id}
-                className="rounded-lg border border-zinc-200 p-4"
-              >
-                <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
-                  Section {sectionIndex + 1}
-                </p>
-
-                <h3 className="mt-1 font-semibold text-zinc-950">
-                  {section.title}
-                </h3>
-
-                <div className="mt-4 space-y-3">
-                  {section.lessons?.length ? (
-                    section.lessons.map((lesson, lessonIndex) => {
-                      const isLocked =
-                        !canViewAllLessons && !lesson.isPreviewFree;
-
-                      const isCompleted = completedLessons.includes(lesson._id);
-                      const watchedPercent = getLessonWatchedPercent(
-                        lesson._id,
-                      );
-
-                      return (
-                        <button
-                          key={lesson._id}
-                          type="button"
-                          onClick={() => handleOpenLesson(lesson, section)}
-                          className={`w-full rounded-md border p-3 text-left transition ${
-                            isLocked
-                              ? "border-zinc-200 bg-stone-50"
-                              : "border-zinc-200 bg-white hover:border-emerald-300 hover:bg-emerald-50"
-                          }`}
-                        >
-                          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                            <div className="flex-1">
-                              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                                Lesson {lessonIndex + 1}
-                              </p>
-
-                              <h4 className="mt-1 font-medium text-zinc-950">
-                                {lesson.title}
-                              </h4>
-
-                              <div className="mt-2 flex flex-wrap gap-2 text-xs text-zinc-600">
-                                <span>{lesson.duration || 0} min</span>
-
-                                {watchedPercent > 0 && !isCompleted ? (
-                                  <span className="rounded-full bg-blue-100 px-2 py-1 font-medium text-blue-800">
-                                    {watchedPercent}% watched
-                                  </span>
-                                ) : null}
-
-                                {lesson.isPreviewFree ? (
-                                  <span className="rounded-full bg-emerald-100 px-2 py-1 font-medium text-emerald-800">
-                                    Free Preview
-                                  </span>
-                                ) : null}
-
-                                {isCompleted ? (
-                                  <span className="rounded-full bg-blue-100 px-2 py-1 font-medium text-blue-800">
-                                    Completed
-                                  </span>
-                                ) : null}
-
-                                {isLocked ? (
-                                  <span className="rounded-full bg-zinc-200 px-2 py-1 font-medium text-zinc-700">
-                                    Locked
-                                  </span>
-                                ) : null}
-                              </div>
-
-                              {watchedPercent > 0 ? (
-                                <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-zinc-100">
-                                  <div
-                                    className="h-full rounded-full bg-blue-600"
-                                    style={{
-                                      width: `${watchedPercent}%`,
-                                    }}
-                                  />
-                                </div>
-                              ) : null}
-                            </div>
-
-                            <span className="text-sm font-medium text-emerald-700">
-                              {isLocked ? "Enroll to unlock" : "Open"}
-                            </span>
-                          </div>
-                        </button>
-                      );
-                    })
-                  ) : (
-                    <p className="rounded-md bg-stone-50 p-3 text-sm text-zinc-600">
-                      No lessons added yet.
-                    </p>
-                  )}
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
-
-      <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
-        <h2 className="text-xl font-semibold text-zinc-950">Course Quizzes</h2>
-
-        <div className="mt-5 space-y-4">
-          {quizzes.length === 0 ? (
-            <p className="rounded-md bg-stone-50 p-4 text-sm text-zinc-600">
-              No quizzes available for this course yet.
-            </p>
-          ) : (
-            quizzes.map((quiz) => (
-              <div
-                key={quiz._id}
-                className="rounded-lg border border-zinc-200 p-5"
-              >
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                  <div>
-                    <h3 className="font-semibold text-zinc-950">
-                      {quiz.title}
-                    </h3>
-
-                    {quiz.description ? (
-                      <p className="mt-2 text-sm text-zinc-600">
-                        {quiz.description}
-                      </p>
-                    ) : null}
-
-                    <div className="mt-3 flex flex-wrap gap-2 text-xs">
-                      <span className="rounded-full bg-emerald-100 px-2 py-1 font-medium text-emerald-800">
-                        {quiz.questions?.length || 0} questions
-                      </span>
-
-                      <span className="rounded-full bg-amber-100 px-2 py-1 font-medium text-amber-800">
-                        Passing {quiz.passingPercentage}%
-                      </span>
-
-                      {quiz.timeLimitMinutes > 0 ? (
-                        <span className="rounded-full bg-blue-100 px-2 py-1 font-medium text-blue-800">
-                          {quiz.timeLimitMinutes} min
-                        </span>
-                      ) : null}
-
-                      {quiz.maxAttempts > 0 ? (
-                        <span className="rounded-full bg-zinc-100 px-2 py-1 font-medium text-zinc-700">
-                          {quiz.maxAttempts} attempts
-                        </span>
-                      ) : (
-                        <span className="rounded-full bg-zinc-100 px-2 py-1 font-medium text-zinc-700">
-                          Unlimited attempts
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {isAuthenticated && user?.role === "student" && isEnrolled ? (
-                    <Link
-                      to={`/quizzes/${quiz._id}/attempt`}
-                      className="inline-flex justify-center rounded-md bg-zinc-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800"
-                    >
-                      Attempt Quiz
-                    </Link>
-                  ) : (
-                    <p className="rounded-md bg-stone-50 px-3 py-2 text-sm text-zinc-600">
-                      Enroll to attempt
-                    </p>
-                  )}
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
-
-      <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h2 className="text-xl font-semibold text-zinc-950">
-              AI Study Notes
-            </h2>
-
-            <p className="mt-1 text-sm text-zinc-600">
-              Generate quick revision notes, key points, terms, and practice
-              questions.
-            </p>
-          </div>
-
-          {canViewAllLessons ? (
-            <button
-              type="button"
-              onClick={handleGenerateStudyNotes}
-              disabled={isGeneratingNotes}
-              className="rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-emerald-400"
-            >
-              {isGeneratingNotes ? "Generating..." : "Generate Notes with AI"}
-            </button>
-          ) : null}
-        </div>
-
-        {!canViewAllLessons ? (
-          <p className="mt-5 rounded-md bg-stone-50 px-3 py-2 text-sm text-zinc-600">
-            Enroll in this course to generate AI study notes.
-          </p>
-        ) : null}
-
-        {studyNotesError ? (
-          <div className="mt-5 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-            {studyNotesError}
-          </div>
-        ) : null}
-
-        {studyNotes ? (
-          <div className="mt-6 space-y-5">
-            <div className="rounded-xl border border-emerald-100 bg-emerald-50/40 p-5">
-              <h3 className="font-semibold text-zinc-950">Summary</h3>
-              <p className="mt-2 whitespace-pre-line text-sm leading-6 text-zinc-700">
-                {studyNotes.summary}
-              </p>
-            </div>
-
-            {studyNotes.keyPoints?.length ? (
-              <div className="rounded-xl border border-zinc-200 p-5">
-                <h3 className="font-semibold text-zinc-950">Key Points</h3>
-                <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-zinc-700">
-                  {studyNotes.keyPoints.map((point, index) => (
-                    <li key={index}>{point}</li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-
-            {studyNotes.importantTerms?.length ? (
-              <div className="rounded-xl border border-zinc-200 p-5">
-                <h3 className="font-semibold text-zinc-950">Important Terms</h3>
-
-                <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                  {studyNotes.importantTerms.map((item, index) => (
-                    <div key={index} className="rounded-lg bg-stone-50 p-4">
-                      <p className="font-semibold text-zinc-950">{item.term}</p>
-                      <p className="mt-1 text-sm leading-6 text-zinc-600">
-                        {item.definition}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-
-            {studyNotes.revisionChecklist?.length ? (
-              <div className="rounded-xl border border-zinc-200 p-5">
-                <h3 className="font-semibold text-zinc-950">
-                  Revision Checklist
-                </h3>
-                <ul className="mt-3 space-y-2 text-sm text-zinc-700">
-                  {studyNotes.revisionChecklist.map((item, index) => (
-                    <li key={index}>✅ {item}</li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-
-            {studyNotes.practiceQuestions?.length ? (
-              <div className="rounded-xl border border-zinc-200 p-5">
-                <h3 className="font-semibold text-zinc-950">
-                  Practice Questions
-                </h3>
-                <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm text-zinc-700">
-                  {studyNotes.practiceQuestions.map((question, index) => (
-                    <li key={index}>{question}</li>
-                  ))}
-                </ol>
-              </div>
-            ) : null}
-          </div>
-        ) : null}
-      </div>
-
-      <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h2 className="text-xl font-semibold text-zinc-950">
-              AI Flashcards
-            </h2>
-
-            <p className="mt-1 text-sm text-zinc-600">
-              Generate quick revision flashcards for this course.
-            </p>
-          </div>
-
-          {canViewAllLessons ? (
-            <button
-              type="button"
-              onClick={handleGenerateFlashcards}
-              disabled={isGeneratingFlashcards}
-              className="rounded-md bg-purple-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-purple-800 disabled:cursor-not-allowed disabled:bg-purple-400"
-            >
-              {isGeneratingFlashcards ? "Generating..." : "Generate Flashcards"}
-            </button>
-          ) : null}
-        </div>
-
-        {!canViewAllLessons ? (
-          <p className="mt-5 rounded-md bg-stone-50 px-3 py-2 text-sm text-zinc-600">
-            Enroll in this course to generate AI flashcards.
-          </p>
-        ) : null}
-
-        {flashcardsError ? (
-          <div className="mt-5 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-            {flashcardsError}
-          </div>
-        ) : null}
-
-        {flashcards.length > 0 ? (
-          <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {flashcards.map((card, index) => {
-              const isFlipped = Boolean(flippedCards[index]);
-
-              return (
-                <button
-                  key={`${card.question}-${index}`}
-                  type="button"
-                  onClick={() => handleToggleFlashcard(index)}
-                  className={`min-h-40 rounded-xl border p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
-                    isFlipped
-                      ? "border-purple-200 bg-purple-50"
-                      : "border-zinc-200 bg-white"
-                  }`}
-                >
-                  <p className="text-xs font-semibold uppercase tracking-wide text-purple-700">
-                    {isFlipped ? "Answer" : "Question"} #{index + 1}
-                  </p>
-
-                  <p className="mt-3 text-sm leading-6 text-zinc-800">
-                    {isFlipped ? card.answer : card.question}
-                  </p>
-
-                  <p className="mt-4 text-xs font-medium text-zinc-500">
-                    Click to {isFlipped ? "view question" : "reveal answer"}
-                  </p>
-                </button>
-              );
-            })}
-          </div>
-        ) : null}
-      </div>
-
-      <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h2 className="text-xl font-semibold text-zinc-950">
-              Course Community
-            </h2>
-            <p className="mt-1 text-sm text-zinc-600">
-              Discuss lessons, ask doubts, share ideas, and help other learners
-              in this course.
-            </p>
-          </div>
-
-          <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800">
-            {discussions.length} discussions
-          </span>
-        </div>
-
-        <div className="mt-5 flex flex-wrap gap-2">
-          {["all", "open", "resolved"].map((filter) => (
-            <button
-              key={filter}
-              type="button"
-              onClick={() => setDiscussionFilter(filter)}
-              className={`rounded-full px-3 py-1 text-xs font-semibold capitalize transition ${
-                discussionFilter === filter
-                  ? "bg-emerald-700 text-white"
-                  : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200"
-              }`}
-            >
-              {filter}
-            </button>
-          ))}
-        </div>
-
-        {discussionError ? (
-          <div className="mt-5 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-            {discussionError}
-          </div>
-        ) : null}
-
-        {discussionMessage ? (
-          <div className="mt-5 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
-            {discussionMessage}
-          </div>
-        ) : null}
-
-        {canUseDiscussions ? (
-          <form
-            onSubmit={handleSubmitDiscussion}
-            className="mt-5 rounded-xl border border-emerald-100 bg-emerald-50/40 p-5"
-          >
-            <h3 className="font-semibold text-zinc-950">Start a discussion</h3>
-
-            <input
-              type="text"
-              value={discussionForm.title}
-              onChange={(event) =>
-                setDiscussionForm((current) => ({
-                  ...current,
-                  title: event.target.value,
-                }))
-              }
-              placeholder="Example: I am confused about useEffect dependencies"
-              className="mt-4 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
-            />
-
-            <textarea
-              value={discussionForm.message}
-              onChange={(event) =>
-                setDiscussionForm((current) => ({
-                  ...current,
-                  message: event.target.value,
-                }))
-              }
-              placeholder="Explain your question in detail."
-              className="mt-3 min-h-24 w-full resize-y rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
-            />
-
-            <button
-              type="submit"
-              className="mt-4 rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800"
-            >
-              Post Discussion
-            </button>
-          </form>
-        ) : (
-          <p className="mt-5 rounded-md bg-stone-50 px-3 py-2 text-sm text-zinc-600">
-            Enroll in this course to participate in discussions.
-          </p>
-        )}
-
-        <div className="mt-6 space-y-5">
-          {filteredDiscussions.length === 0 ? (
-            <p className="rounded-md bg-stone-50 p-4 text-sm text-zinc-600">
-              No discussions found. Start the community conversation.
-            </p>
-          ) : (
-            filteredDiscussions.map((discussion) => {
-              const canMarkResolved =
-                getUserId(discussion.user) === studentId ||
-                user?.role === "instructor" ||
-                user?.role === "admin";
-
-              return (
-                <div
-                  key={discussion._id}
-                  className="rounded-xl border border-zinc-200 p-5"
-                >
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="font-semibold text-zinc-950">
-                          {discussion.title}
-                        </h3>
-
-                        {discussion.isResolved ? (
-                          <span className="rounded-full bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-800">
-                            Resolved
-                          </span>
-                        ) : (
-                          <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-800">
-                            Open
-                          </span>
-                        )}
-                        <span className="rounded-full bg-zinc-100 px-2 py-1 text-xs font-semibold text-zinc-700">
-                          {discussion.replies?.length || 0} replies
-                        </span>
-                      </div>
-
-                      <p className="mt-1 text-xs text-zinc-500">
-                        Asked by {discussion.name} •{" "}
-                        {new Date(discussion.createdAt).toLocaleString()}
-                      </p>
-                    </div>
-
-                    {canMarkResolved ? (
-                      <button
-                        type="button"
-                        onClick={() => handleToggleResolved(discussion._id)}
-                        className="rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-100"
-                      >
-                        {discussion.isResolved ? "Reopen" : "Mark Resolved"}
-                      </button>
-                    ) : null}
-                  </div>
-
-                  <p className="mt-4 whitespace-pre-line text-sm leading-6 text-zinc-700">
-                    {discussion.message}
-                  </p>
-
-                  <div className="mt-5 space-y-3">
-                    {discussion.replies?.map((reply, index) => (
-                      <div
-                        key={`${discussion._id}-${index}`}
-                        className="rounded-lg border border-zinc-100 bg-stone-50 p-4"
-                      >
-                        <div className="flex flex-wrap items-center gap-2">
-                          <p className="text-sm font-semibold text-zinc-950">
-                            {reply.name}
-                          </p>
-
-                          <span className="rounded-full bg-zinc-200 px-2 py-0.5 text-xs font-medium capitalize text-zinc-700">
-                            {reply.role}
-                          </span>
-                        </div>
-
-                        <p className="mt-2 whitespace-pre-line text-sm leading-6 text-zinc-700">
-                          {reply.message}
-                        </p>
-
-                        <p className="mt-2 text-xs text-zinc-400">
-                          {reply.createdAt
-                            ? new Date(reply.createdAt).toLocaleString()
-                            : ""}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-
-                  {canUseDiscussions ? (
-                    <form
-                      onSubmit={(event) =>
-                        handleSubmitReply(event, discussion._id)
-                      }
-                      className="mt-4 flex flex-col gap-3 sm:flex-row"
-                    >
-                      <input
-                        type="text"
-                        value={replyForms[discussion._id] || ""}
-                        onChange={(event) =>
-                          setReplyForms((current) => ({
-                            ...current,
-                            [discussion._id]: event.target.value,
-                          }))
-                        }
-                        placeholder="Write a reply..."
-                        className="flex-1 rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
-                      />
-
-                      <button
-                        type="submit"
-                        className="rounded-md bg-zinc-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800"
-                      >
-                        Reply
-                      </button>
-                    </form>
-                  ) : null}
-                </div>
-              );
-            })
-          )}
-        </div>
-      </div>
-
-      <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h2 className="text-xl font-semibold text-zinc-950">
-              Reviews & Ratings
-            </h2>
-            <p className="mt-1 text-sm text-zinc-600">
-              Average rating: {(course.averageRating || 0).toFixed(1)} / 5 from{" "}
-              {course.numReviews || 0} reviews.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-1 rounded-full bg-amber-50 px-4 py-2">
-            <span className="text-2xl font-bold text-amber-600">
-              {(course.averageRating || 0).toFixed(1)}
-            </span>
-            <span className="text-amber-500">★</span>
-          </div>
-        </div>
-
-        {reviewMessage ? (
-          <div className="mt-5 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
-            {reviewMessage}
-          </div>
-        ) : null}
-
-        {reviewError ? (
-          <div className="mt-5 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-            {reviewError}
-          </div>
-        ) : null}
-
-        {canReview ? (
-          <form
-            onSubmit={handleSubmitReview}
-            className="mt-5 rounded-xl border border-amber-200 bg-amber-50/40 p-5"
-          >
-            <h3 className="font-semibold text-zinc-950">Write a review</h3>
-
-            <div className="mt-4">
-              <label className="block text-sm font-medium text-zinc-800">
-                Your rating
-              </label>
-
-              <div className="mt-2">
-                <StarRatingInput
-                  value={reviewForm.rating}
-                  onChange={(rating) =>
-                    setReviewForm((current) => ({
-                      ...current,
-                      rating,
-                    }))
-                  }
-                  disabled={isReviewing}
-                />
-              </div>
-            </div>
-
-            <div className="mt-4">
-              <label
-                htmlFor="comment"
-                className="block text-sm font-medium text-zinc-800"
-              >
-                Comment
-              </label>
-
-              <textarea
-                id="comment"
-                name="comment"
-                value={reviewForm.comment}
-                onChange={(event) =>
-                  setReviewForm((current) => ({
-                    ...current,
-                    comment: event.target.value,
-                  }))
-                }
-                className="mt-2 min-h-28 w-full resize-y rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-100"
-                placeholder="Share your experience with this course."
-                required
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={isReviewing || !reviewForm.comment.trim()}
-              className="mt-4 rounded-md bg-amber-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-700 disabled:cursor-not-allowed disabled:bg-amber-300"
-            >
-              {isReviewing ? "Submitting..." : "Submit Review"}
-            </button>
-          </form>
-        ) : isAuthenticated &&
-          user?.role === "student" &&
-          isEnrolled &&
-          hasReviewed ? (
-          <p className="mt-5 rounded-md bg-stone-50 px-3 py-2 text-sm text-zinc-600">
-            You have already reviewed this course. You can edit or delete your
-            review below.
-          </p>
-        ) : null}
-
-        <div className="mt-6 space-y-4">
-          {reviews.length === 0 ? (
-            <p className="rounded-md bg-stone-50 p-4 text-sm text-zinc-600">
-              No reviews yet.
-            </p>
-          ) : (
-            reviews.map((review) => {
-              const isOwnReview = getUserId(review.user) === studentId;
-              const isEditing = editingReviewId === review._id;
-
-              return (
-                <div
-                  key={review._id}
-                  className="rounded-xl border border-zinc-200 p-5 shadow-sm"
-                >
-                  {isEditing ? (
-                    <form onSubmit={handleUpdateReview}>
-                      <div>
-                        <label className="block text-sm font-medium text-zinc-800">
-                          Edit rating
-                        </label>
-
-                        <div className="mt-2">
-                          <StarRatingInput
-                            value={editReviewForm.rating}
-                            onChange={(rating) =>
-                              setEditReviewForm((current) => ({
-                                ...current,
-                                rating,
-                              }))
-                            }
-                            disabled={isReviewing}
-                          />
-                        </div>
-                      </div>
-
-                      <textarea
-                        value={editReviewForm.comment}
-                        onChange={(event) =>
-                          setEditReviewForm((current) => ({
-                            ...current,
-                            comment: event.target.value,
-                          }))
-                        }
-                        className="mt-4 min-h-24 w-full resize-y rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-100"
-                        required
-                      />
-
-                      <div className="mt-4 flex flex-wrap gap-2">
-                        <button
-                          type="submit"
-                          disabled={
-                            isReviewing || !editReviewForm.comment.trim()
-                          }
-                          className="rounded-md bg-amber-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-700 disabled:bg-amber-300"
-                        >
-                          {isReviewing ? "Saving..." : "Save Review"}
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => setEditingReviewId("")}
-                          className="rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-100"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </form>
-                  ) : (
-                    <>
-                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                        <div>
-                          <p className="font-semibold text-zinc-950">
-                            {review.name}
-                          </p>
-
-                          <div className="mt-1 flex items-center gap-2">
-                            <div className="text-lg text-amber-500">
-                              {"★".repeat(review.rating)}
-                              <span className="text-zinc-300">
-                                {"★".repeat(5 - review.rating)}
-                              </span>
-                            </div>
-
-                            <span className="text-sm text-zinc-500">
-                              {review.rating}/5
-                            </span>
-                          </div>
-                        </div>
-
-                        {isOwnReview ? (
-                          <div className="flex gap-2">
-                            <button
-                              type="button"
-                              onClick={() => startEditReview(review)}
-                              className="rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-100"
-                            >
-                              Edit
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteReview(review._id)}
-                              className="rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-red-700"
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        ) : null}
-                      </div>
-
-                      <p className="mt-3 text-sm leading-6 text-zinc-600">
-                        {review.comment}
-                      </p>
-                    </>
-                  )}
-                </div>
-              );
-            })
-          )}
-        </div>
-      </div>
+      <CourseCurriculum
+        sections={sections}
+        canViewAllLessons={canViewAllLessons}
+        completedLessons={completedLessons}
+        getLessonWatchedPercent={getLessonWatchedPercent}
+        handleOpenLesson={handleOpenLesson}
+      />
+
+      <CourseQuizzes
+        quizzes={quizzes}
+        isAuthenticated={isAuthenticated}
+        user={user}
+        isEnrolled={isEnrolled}
+      />
+      <AiStudyNotes
+        canViewAllLessons={canViewAllLessons}
+        studyNotes={studyNotes}
+        studyNotesError={studyNotesError}
+        isGeneratingNotes={isGeneratingNotes}
+        handleGenerateStudyNotes={handleGenerateStudyNotes}
+      />
+
+      <AiFlashcards
+        canViewAllLessons={canViewAllLessons}
+        flashcards={flashcards}
+        flashcardsError={flashcardsError}
+        isGeneratingFlashcards={isGeneratingFlashcards}
+        handleGenerateFlashcards={handleGenerateFlashcards}
+        activeFlashcard={activeFlashcard}
+        setActiveFlashcard={setActiveFlashcard}
+        showFlashcardAnswer={showFlashcardAnswer}
+        setShowFlashcardAnswer={setShowFlashcardAnswer}
+      />
+      <CourseCommunity
+        discussions={discussions}
+        filteredDiscussions={filteredDiscussions}
+        discussionFilter={discussionFilter}
+        setDiscussionFilter={setDiscussionFilter}
+        discussionError={discussionError}
+        discussionMessage={discussionMessage}
+        canUseDiscussions={canUseDiscussions}
+        discussionForm={discussionForm}
+        setDiscussionForm={setDiscussionForm}
+        handleSubmitDiscussion={handleSubmitDiscussion}
+        replyForms={replyForms}
+        setReplyForms={setReplyForms}
+        handleSubmitReply={handleSubmitReply}
+        handleToggleResolved={handleToggleResolved}
+        getUserId={getUserId}
+        studentId={studentId}
+        user={user}
+      />
+
+      <CourseReviews
+        course={course}
+        reviews={reviews}
+        reviewMessage={reviewMessage}
+        reviewError={reviewError}
+        canReview={canReview}
+        reviewForm={reviewForm}
+        setReviewForm={setReviewForm}
+        handleSubmitReview={handleSubmitReview}
+        isReviewing={isReviewing}
+        isAuthenticated={isAuthenticated}
+        user={user}
+        isEnrolled={isEnrolled}
+        hasReviewed={hasReviewed}
+        getUserId={getUserId}
+        studentId={studentId}
+        editingReviewId={editingReviewId}
+        editReviewForm={editReviewForm}
+        setEditReviewForm={setEditReviewForm}
+        handleUpdateReview={handleUpdateReview}
+        setEditingReviewId={setEditingReviewId}
+        startEditReview={startEditReview}
+        handleDeleteReview={handleDeleteReview}
+      />
     </section>
   );
 }

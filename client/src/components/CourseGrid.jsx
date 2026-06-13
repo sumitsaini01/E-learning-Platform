@@ -1,9 +1,9 @@
-import CourseCard from "./CourseCard";
+import CourseCard from "./UI/CourseCard";
 
 function CourseGrid({ courses, error, isLoading, onRetry }) {
   if (isLoading) {
     return (
-      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
         {Array.from({ length: 6 }).map((_, index) => (
           <div
             key={index}
@@ -60,7 +60,7 @@ function CourseGrid({ courses, error, isLoading, onRetry }) {
   }
 
   return (
-    <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
       {courses.map((course) => (
         <CourseCard key={course._id || course.id} course={course} />
       ))}

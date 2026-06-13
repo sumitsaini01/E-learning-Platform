@@ -5,7 +5,6 @@ import connectDB from "./config/db.js";
 import { errorHandler, notFound } from "./middleware/errorMiddleware.js";
 import courseRoutes from "./routes/courseRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
-import reviewRoutes from "./routes/reviewRoutes.js";
 import progressRoutes from "./routes/progressRoutes.js";
 import paymentRoutes from "./routes/paymentRoutes.js";
 import quizRoutes from "./routes/quizRoutes.js";
@@ -33,7 +32,6 @@ const startServer = async () => {
 
     app.use("/api/auth", authRoutes); // ✅ RESTORED
     app.use("/api/courses", courseRoutes);
-    app.use("/api/reviews", reviewRoutes);
     app.use("/api/progress", progressRoutes);
     app.use("/api/payment", paymentRoutes);
     app.use("/api/quizzes", quizRoutes);

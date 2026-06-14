@@ -153,17 +153,29 @@ export const registerUser = async (req, res) => {
       </div>
     `;
 
-    await sendEmail({
-      to: user.email,
-      subject: "Verify your SkillSphere email",
-      html,
-    });
+    try {
+      await sendEmail({
+        to: user.email,
+        subject: "Verify your SkillSphere email",
+        html,
+      });
 
-    res.status(201).json({
-      success: true,
-      message: "Registration successful. Please verify your email OTP.",
-      email: user.email,
-    });
+      return res.status(201).json({
+        success: true,
+        message: "Registration successful. Please verify your email OTP.",
+        email: user.email,
+      });
+    } catch (emailError) {
+      console.error("Verification email failed:", emailError.message);
+
+      return res.status(201).json({
+        success: true,
+        emailSent: false,
+        message:
+          "Registration successful, but verification email could not be sent. Please use resend OTP after some time.",
+        email: user.email,
+      });
+    }
   } catch (error) {
     console.error("Registration error:", error);
 

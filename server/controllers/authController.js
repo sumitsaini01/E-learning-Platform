@@ -115,7 +115,10 @@ export const registerUser = async (req, res) => {
     const { name, email, password, role } = req.body;
 
     if (!name || !email || !password) {
-      return res.status(400).json({ message: "All fields are required" });
+      return res.status(400).json({
+        success: false,
+        message: "All fields are required",
+      });
     }
 
     const allowedPublicRoles = ["student", "instructor"];
@@ -126,7 +129,10 @@ export const registerUser = async (req, res) => {
     });
 
     if (existingUser) {
-      return res.status(409).json({ message: "User already exists" });
+      return res.status(409).json({
+        success: false,
+        message: "User already exists",
+      });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -136,50 +142,24 @@ export const registerUser = async (req, res) => {
       email: email.trim().toLowerCase(),
       password: hashedPassword,
       role: safeRole,
-      isEmailVerified: false,
+      isEmailVerified: true,
     });
 
-    const otp = user.getEmailVerificationOtp();
-
-    await user.save({ validateBeforeSave: false });
-
-    const html = `
-      <div style="font-family: Arial, sans-serif; line-height: 1.6;">
-        <h2>Verify your SkillSphere account</h2>
-        <p>Hello ${user.name},</p>
-        <p>Your email verification OTP is:</p>
-        <h1 style="letter-spacing: 4px;">${otp}</h1>
-        <p>This OTP will expire in 10 minutes.</p>
-      </div>
-    `;
-
-    try {
-      await sendEmail({
-        to: user.email,
-        subject: "Verify your SkillSphere email",
-        html,
-      });
-
-      return res.status(201).json({
-        success: true,
-        message: "Registration successful. Please verify your email OTP.",
+    return res.status(201).json({
+      success: true,
+      message: "Registration successful. You can now login.",
+      email: user.email,
+      user: {
+        id: user._id,
+        name: user.name,
         email: user.email,
-      });
-    } catch (emailError) {
-      console.error("Verification email failed:", emailError.message);
-
-      return res.status(201).json({
-        success: true,
-        emailSent: false,
-        message:
-          "Registration successful, but verification email could not be sent. Please use resend OTP after some time.",
-        email: user.email,
-      });
-    }
+        role: user.role,
+      },
+    });
   } catch (error) {
     console.error("Registration error:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: "Registration failed",
       error: process.env.NODE_ENV === "production" ? undefined : error.message,
@@ -347,14 +327,15 @@ export const loginUser = async (req, res) => {
       });
     }
 
-    if (!user.isEmailVerified) {
-      return res.status(403).json({
-        success: false,
-        message: "Please verify your email before logging in.",
-        email: user.email,
-        requiresEmailVerification: true,
-      });
-    }
+    // Temporary disabled for production deployment
+    // if (!user.isEmailVerified) {
+    //   return res.status(403).json({
+    //     success: false,
+    //     message: "Please verify your email before logging in.",
+    //     email: user.email,
+    //     requiresEmailVerification: true,
+    //   });
+    // }
 
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 

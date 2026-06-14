@@ -290,9 +290,12 @@ export const resendEmailOtp = async (req, res) => {
       message: "OTP resent successfully",
     });
   } catch (error) {
+    console.error("Resend OTP error:", error);
+
     return res.status(500).json({
       success: false,
       message: "Failed to resend OTP",
+      error: process.env.NODE_ENV === "production" ? undefined : error.message,
     });
   }
 };
